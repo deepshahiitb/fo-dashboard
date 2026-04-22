@@ -272,7 +272,7 @@ select.finp option{background:var(--bg3)}
     <div class="sheet-head"><span class="sheet-title">Settings</span><button class="sheet-x" onclick="closeSheet('settingsSheet')">✕</button></div>
     <div class="fbody">
       <div class="sec-sep">Profiles</div>
-      <div id="profManage"></div>
+      <div id="profManage" style="margin-bottom:10px"></div>
       <div class="frow" style="margin-top:6px">
         <input class="finp" id="newPN" placeholder="New profile name">
         <button class="btn-p" style="margin-top:0" onclick="addProfile()">Add</button>
@@ -308,25 +308,38 @@ select.finp option{background:var(--bg3)}
 // ═══════════════════════════════════════════════
 //  CONFIG  — update WORKER after Cloudflare deploy
 // ═══════════════════════════════════════════════
-const APP_VERSION = "1.1"; // Increment this whenever you push changes to force reload
+const APP_VERSION = "BUILD_TIMESTAMP"; // Auto-replaced during build
 const API_KEY    = "5764ef69-8599-489f-9b5a-34b2af66ba3e";
 const REDIRECT   = "https://deepshahiitb.github.io/fo-dashboard/";
 const WORKER     = "https://fo-dashboard.deepshah-iitb.workers.dev";
 const AUTH_URL   = `https://api.upstox.com/v2/login/authorization/dialog?response_type=code&client_id=${API_KEY}&redirect_uri=${encodeURIComponent(REDIRECT)}`;
 
 // ═══════════════════════════════════════════════
-//  VERSION CHECK — auto-reload if version changes
+//  VERSION CHECK — auto-reload code only, keep all data
 // ═══════════════════════════════════════════════
-function checkVersion() {
-  const stored = localStorage.getItem('fo_app_version');
-  if (stored && stored !== APP_VERSION) {
-    console.log('New version detected, clearing cache and reloading...');
-    localStorage.removeItem('fo_pin_session'); // clear PIN cache
-    localStorage.setItem('fo_app_version', APP_VERSION);
-    window.location.reload(true);
-    return false;
+async function checkVersion() {
+  try {
+    // Fetch index.html with cache-busting query
+    const response = await fetch(window.location.href + '?t=' + Date.now(), {
+      method: 'HEAD',
+      cache: 'no-store'
+    });
+    const lastModified = response.headers.get('Last-Modified');
+    
+    if (lastModified) {
+      const stored = localStorage.getItem('fo_last_modified');
+      if (stored && stored !== lastModified) {
+        console.log('New version detected, reloading...');
+        localStorage.setItem('fo_last_modified', lastModified);
+        window.location.reload(true);
+        return false;
+      }
+      localStorage.setItem('fo_last_modified', lastModified);
+    }
+  } catch(e) {
+    // If check fails, continue normally
+    console.log('Version check failed, continuing...');
   }
-  localStorage.setItem('fo_app_version', APP_VERSION);
   return true;
 }
 
@@ -779,7 +792,12 @@ function importData(e) {
 // ═══════════════════════════════════════════════
 //  SHEET HELPERS
 // ═══════════════════════════════════════════════
-function openSheet(id) { document.getElementById(id).classList.add('open'); document.body.style.overflow='hidden'; }
+function openSheet(id) {
+  document.getElementById(id).classList.add('open');
+  document.body.style.overflow='hidden';
+  // If opening settings, populate profile manage list
+  if (id === 'settingsSheet') renderProfManage();
+}
 function closeSheet(id) { document.getElementById(id).classList.remove('open'); document.body.style.overflow=''; }
 document.querySelectorAll('.overlay').forEach(el=>el.addEventListener('click',e=>{if(e.target===el)closeSheet(el.id);}));
 document.addEventListener('click',e=>{if(!e.target.closest('.srch-wrap'))document.getElementById('srchRes').style.display='none';});
@@ -788,8 +806,9 @@ document.addEventListener('click',e=>{if(!e.target.closest('.srch-wrap'))documen
 //  INIT
 // ═══════════════════════════════════════════════
 async function init() {
-  // Check version first - will reload if mismatch
-  if (!checkVersion()) return;
+  // Check version first - will reload if new version detected
+  const versionOk = await checkVersion();
+  if (!versionOk) return;
 
   // handle owner OAuth callback (has ?code= in URL)
   const params = new URLSearchParams(window.location.search);
