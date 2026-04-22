@@ -6,6 +6,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="F&O">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>F&O Family Dashboard</title>
 <style>
 :root{--bg:#09090e;--bg2:#111118;--bg3:#18181f;--bg4:#21212b;--bg5:#2a2a36;--b:rgba(255,255,255,.07);--b2:rgba(255,255,255,.12);--b3:rgba(255,255,255,.18);--t:#eeeef5;--t2:#8888a8;--t3:#44445a;--ac:#6c5ce7;--ac2:#a29bfe;--gn:#00b894;--gn2:rgba(0,184,148,.13);--rd:#e17055;--rd2:rgba(225,112,85,.13);--am:#fdcb6e;--am2:rgba(253,203,110,.13);--r:10px;--r2:7px}
@@ -262,6 +265,14 @@ select.finp option{background:var(--bg3)}
 </div>
 
 <script>
+// Clear any old service workers / caches from previous versions
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
+}
+if ('caches' in window) {
+  caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
+}
+
 const WORKER = "https://fo-dashboard.deepshah-iitb.workers.dev";
 const API_KEY = "5764ef69-8599-489f-9b5a-34b2af66ba3e";
 const REDIRECT = "https://deepshahiitb.github.io/fo-dashboard/";
@@ -530,12 +541,11 @@ function renderMain() {
       html+=mkSec(pr.name,pp,false);
     }
     if (closed.length) html+=mkSec('Closed',closed,true);
+    if (!html) html=`<div class="empty">No positions yet.<br>Select a profile above to add positions.</div>`;
   } else {
+    // Always show section header with + button for specific profile
     html+=mkSec('Open Positions',open,false);
     if (closed.length) html+=mkSec('Closed',closed,true);
-  }
-  if (!open.length&&!closed.length && S.activeProfile!=='overall') {
-    html=`<div class="empty">No positions.<br>Tap <strong>+ New Position</strong> below to add one.</div>`;
   }
   document.getElementById('main').innerHTML=html;
 }
