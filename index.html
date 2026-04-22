@@ -468,6 +468,39 @@ function pickInstr(i) {
   document.getElementById('selInstr').style.display='block';
   document.getElementById('si_name').textContent = i.trading_symbol||i.name;
   document.getElementById('si_meta').textContent = `${selInstr.type} · ${i.exchange||''}${i.expiry?' · '+i.expiry:''}${i.strike_price?' · ₹'+i.strike_price:''} · Lot: ${i.lot_size||'?'}`;
+  
+  // Auto-fetch margin from Zerodha for futures
+  if (selInstr.type === 'FUT') {
+    fetchMargin(selInstr.symbol, i.expiry);
+  }
+}
+
+async function fetchMargin(symbol, expiry) {
+  const mgInp = document.getElementById('f_mg');
+  mgInp.placeholder = 'Fetching from Zerodha...';
+  try {
+    // Convert expiry format from "2026-04-28" to "28-APR-2026"
+    let expiryStr = '';
+    if (expiry) {
+      const d = new Date(expiry);
+      if (!isNaN(d)) {
+        const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+        expiryStr = `${String(d.getDate()).padStart(2,'0')}-${months[d.getMonth()]}-${d.getFullYear()}`;
+      }
+    }
+    const r = await fetch(`${WORKER}/margin?symbol=${encodeURIComponent(symbol)}&expiry=${encodeURIComponent(expiryStr)}`, {
+      headers: {'X-PIN':PIN}
+    });
+    const d = await r.json();
+    if (d.found && d.margin) {
+      mgInp.value = d.margin.margin;
+      mgInp.placeholder = `Auto-filled: ${d.margin.margin}`;
+    } else {
+      mgInp.placeholder = 'Enter manually';
+    }
+  } catch(e) {
+    mgInp.placeholder = 'Enter manually';
+  }
 }
 
 function clearInstr() {
