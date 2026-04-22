@@ -322,7 +322,7 @@ let PIN = ''; // entered PIN, kept in memory only
 function save() { localStorage.setItem('fo_v4', JSON.stringify(S)); }
 function load() {
   try { const d = localStorage.getItem('fo_v4'); if(d) S={...S,...JSON.parse(d)}; } catch(e){}
-  if (!S.profiles.length) S.profiles = [{id:'p1',name:'Me'},{id:'p2',name:'Spouse'}];
+  // No default profiles - user adds their own
 }
 
 // ═══════════════════════════════════════════════
@@ -581,6 +581,12 @@ function renderSum() {
 }
 
 function renderMain() {
+  // If no profiles exist yet, show onboarding
+  if (!S.profiles.length) {
+    document.getElementById('main').innerHTML = `<div class="empty">No profiles yet.<br>Tap <strong>⚙ Settings</strong> to add family members.</div>`;
+    return;
+  }
+
   let pos=S.positions;
   if (S.activeProfile!=='overall') pos=pos.filter(p=>p.profileId===S.activeProfile);
   const open=pos.filter(p=>!p.closed), closed=pos.filter(p=>p.closed);
@@ -596,12 +602,14 @@ function renderMain() {
     html+=mkSec('Open Positions',open,false,S.activeProfile);
     if (closed.length) html+=mkSec('Closed',closed,true,null);
   }
-  if (!open.length&&!closed.length) html=`<div class="empty">No positions yet.<br>Tap <strong>+ Add</strong> to get started.</div>`;
+  if (!open.length&&!closed.length && S.activeProfile !== 'overall') html=`<div class="empty">No positions yet.<br>Tap <strong>+ Add</strong> to get started.</div>`;
   document.getElementById('main').innerHTML=html;
 }
 
 function mkSec(title,positions,isClosed,pid) {
-  const addBtn=!isClosed?`<button class="btn-add" onclick="openAdd('${pid||S.activeProfile}')">+ Add</button>`:'';
+  // Show Add button for all non-closed sections when viewing a specific profile
+  const showAdd = !isClosed && S.activeProfile !== 'overall';
+  const addBtn = showAdd ? `<button class="btn-add" onclick="openAdd('${pid||S.activeProfile}')">+ Add</button>` : '';
   return `<div class="sec"><div class="sec-h"><span class="sec-t">${title} (${positions.length})</span>${addBtn}</div>`
     +(positions.length?positions.map(mkCard).join(''):'<div style="font-size:11px;color:var(--t3);padding:6px 0">None</div>')
     +'</div>';
