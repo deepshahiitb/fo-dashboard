@@ -8,90 +8,69 @@
 <meta name="apple-mobile-web-app-title" content="F&O">
 <title>F&O Family Dashboard</title>
 <style>
-:root{
-  --bg:#09090e;--bg2:#111118;--bg3:#18181f;--bg4:#21212b;--bg5:#2a2a36;
-  --b:rgba(255,255,255,.07);--b2:rgba(255,255,255,.12);--b3:rgba(255,255,255,.18);
-  --t:#eeeef5;--t2:#8888a8;--t3:#44445a;
-  --ac:#6c5ce7;--ac2:#a29bfe;
-  --gn:#00b894;--gn2:rgba(0,184,148,.13);
-  --rd:#e17055;--rd2:rgba(225,112,85,.13);
-  --am:#fdcb6e;--am2:rgba(253,203,110,.13);
-  --r:10px;--r2:7px;
-}
+:root{--bg:#09090e;--bg2:#111118;--bg3:#18181f;--bg4:#21212b;--bg5:#2a2a36;--b:rgba(255,255,255,.07);--b2:rgba(255,255,255,.12);--b3:rgba(255,255,255,.18);--t:#eeeef5;--t2:#8888a8;--t3:#44445a;--ac:#6c5ce7;--ac2:#a29bfe;--gn:#00b894;--gn2:rgba(0,184,148,.13);--rd:#e17055;--rd2:rgba(225,112,85,.13);--am:#fdcb6e;--am2:rgba(253,203,110,.13);--r:10px;--r2:7px}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;background:var(--bg);color:var(--t);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;font-size:15px;overflow-x:hidden}
 
-/* ── GATE (PIN + owner login) ── */
+/* GATE */
 #gate{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:32px 20px;gap:0}
-.gate-logo{font-size:48px;font-weight:800;letter-spacing:-3px;margin-bottom:4px}
-.gate-logo em{color:var(--ac2);font-style:normal}
-.gate-tagline{font-size:12px;color:var(--t2);margin-bottom:44px}
+.logo{font-size:48px;font-weight:800;letter-spacing:-3px;margin-bottom:4px}
+.logo em{color:var(--ac2);font-style:normal}
+.tagline{font-size:12px;color:var(--t2);margin-bottom:44px}
 .gate-card{background:var(--bg2);border:1px solid var(--b2);border-radius:16px;padding:26px 22px;width:100%;max-width:340px}
 .gate-card h2{font-size:15px;font-weight:700;margin-bottom:4px}
 .gate-card p{font-size:12px;color:var(--t2);margin-bottom:20px;line-height:1.6}
-
-/* PIN dots */
 .pin-dots{display:flex;gap:12px;justify-content:center;margin-bottom:20px}
 .pin-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--b3);transition:all .15s}
 .pin-dot.filled{background:var(--ac);border-color:var(--ac)}
 .pin-error{color:var(--rd);font-size:12px;text-align:center;margin-bottom:12px;min-height:18px}
-
-/* numpad */
 .numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .nk{background:var(--bg3);border:1px solid var(--b2);border-radius:12px;padding:16px;font-size:20px;font-weight:600;cursor:pointer;text-align:center;transition:all .1s;color:var(--t)}
 .nk:active{background:var(--bg5);transform:scale(.95)}
 .nk.del{font-size:15px;color:var(--t2)}
 .nk.empty{background:transparent;border-color:transparent;pointer-events:none}
+.owner-link{margin-top:18px;text-align:center;font-size:11px;color:var(--t3)}
+.owner-link a{color:var(--t2);cursor:pointer;text-decoration:underline}
 
-.gate-owner-link{margin-top:18px;text-align:center;font-size:11px;color:var(--t3)}
-.gate-owner-link a{color:var(--t2);cursor:pointer;text-decoration:underline}
-
-/* token expired banner */
-#tokenBanner{display:none;background:var(--am2);border:1px solid rgba(253,203,110,.25);border-radius:var(--r2);padding:10px 13px;margin:10px 14px 0;font-size:12px;color:var(--am);line-height:1.6}
-#tokenBanner a{color:var(--am);font-weight:700;cursor:pointer;text-decoration:underline}
-
-/* ── APP ── */
+/* APP */
 #app{display:none;flex-direction:column;min-height:100vh}
 .hdr{background:var(--bg2);border-bottom:1px solid var(--b);padding:12px 14px 0;position:sticky;top:0;z-index:100}
 .hdr-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
-.app-title{font-size:17px;font-weight:800;letter-spacing:-.5px}
-.app-title em{color:var(--ac2);font-style:normal}
+.title{font-size:17px;font-weight:800;letter-spacing:-.5px}
+.title em{color:var(--ac2);font-style:normal}
 .hdr-right{display:flex;align-items:center;gap:7px}
 .mkt-pill{display:flex;align-items:center;gap:5px;background:var(--bg3);border:1px solid var(--b);border-radius:20px;padding:4px 9px;font-size:10px;color:var(--t2)}
 .mkt-dot{width:5px;height:5px;border-radius:50%;background:var(--t3);flex-shrink:0}
 .mkt-dot.on{background:var(--gn);animation:blink 2s infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
 .ibtn{background:var(--bg3);border:1px solid var(--b2);border-radius:7px;padding:5px 9px;font-size:11px;color:var(--t2);cursor:pointer;display:flex;align-items:center;gap:4px}
-.ibtn svg{flex-shrink:0}
-
-/* profile tabs */
 .ptabs{display:flex;gap:5px;overflow-x:auto;padding:0 0 10px;scrollbar-width:none}
 .ptabs::-webkit-scrollbar{display:none}
-.ptab{flex-shrink:0;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--b2);background:transparent;color:var(--t2);white-space:nowrap;transition:all .15s}
+.ptab{flex-shrink:0;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--b2);background:transparent;color:var(--t2);white-space:nowrap}
 .ptab.active{background:var(--ac);border-color:var(--ac);color:#fff}
 .ptab.add{color:var(--ac2);border-color:rgba(108,92,231,.35)}
 
-/* summary */
+/* SUMMARY */
 .sum{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:10px 14px}
 .sc{background:var(--bg2);border:1px solid var(--b);border-radius:var(--r);padding:10px 12px}
 .sc-l{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px}
-.sc-v{font-size:18px;font-weight:700;letter-spacing:-.5px;line-height:1}
+.sc-v{font-size:18px;font-weight:700;letter-spacing:-.5px}
 .sc-s{font-size:10px;color:var(--t2);margin-top:3px}
 .pos{color:var(--gn)}.neg{color:var(--rd)}.neu{color:var(--t)}
 
-/* section */
+/* SECTIONS */
 .sec{padding:0 14px 14px}
 .sec-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 .sec-t{font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.8px}
-.btn-add{display:flex;align-items:center;gap:4px;background:var(--ac);color:#fff;border:none;border-radius:6px;padding:5px 11px;font-size:12px;font-weight:700;cursor:pointer}
+.btn-add{background:var(--ac);color:#fff;border:none;border-radius:6px;padding:5px 11px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
 
-/* holding card */
-.hcard{background:var(--bg2);border:1px solid var(--b);border-radius:var(--r);margin-bottom:7px;overflow:hidden}
+/* HOLDING CARD */
+.hcard{background:var(--bg2);border:1px solid var(--b);border-radius:var(--r);margin-bottom:7px}
 .hcard.closed{opacity:.55}
 .hc-top{display:flex;align-items:flex-start;justify-content:space-between;padding:10px 12px 8px;border-bottom:1px solid var(--b)}
 .hc-name{font-size:13px;font-weight:700;letter-spacing:-.2px;line-height:1.2}
-.hc-meta{display:flex;gap:4px;margin-top:4px;flex-wrap:wrap;align-items:center}
-.badge{display:inline-block;font-size:9px;font-weight:800;padding:2px 5px;border-radius:4px;letter-spacing:.5px}
+.hc-meta{display:flex;gap:4px;margin-top:4px;flex-wrap:wrap}
+.badge{font-size:9px;font-weight:800;padding:2px 5px;border-radius:4px;letter-spacing:.5px}
 .bf{background:rgba(108,92,231,.18);color:var(--ac2)}
 .bc{background:rgba(0,184,148,.15);color:var(--gn)}
 .bp{background:rgba(225,112,85,.15);color:var(--rd)}
@@ -103,41 +82,43 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:-apple-sys
 .hc-grid{display:grid;grid-template-columns:repeat(3,1fr)}
 .hcell{padding:7px 10px;border-right:1px solid var(--b)}
 .hcell:last-child{border-right:none}
-.hcell-l{font-size:8px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
-.hcell-v{font-size:11px;font-weight:600}
+.hcl{font-size:8px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
+.hcv{font-size:11px;font-weight:600}
 .hc-foot{display:flex;align-items:center;justify-content:space-between;padding:7px 12px;background:var(--bg3);border-top:1px solid var(--b)}
 .hc-pnl{font-size:12px;font-weight:700}
 .hc-note{font-size:9px;color:var(--t3);margin-top:2px}
 .hc-btns{display:flex;gap:5px}
 .bsm{font-size:10px;font-weight:700;padding:4px 9px;border-radius:5px;border:1px solid var(--b2);background:transparent;color:var(--t2);cursor:pointer}
-.b-sell{border-color:rgba(225,112,85,.4);color:var(--rd)}
-.b-del{border-color:var(--b);color:var(--t3)}
+.bsm.sell{border-color:rgba(225,112,85,.4);color:var(--rd)}
+.bsm.del{border-color:var(--b);color:var(--t3)}
 
 .empty{text-align:center;padding:36px 20px;color:var(--t3);font-size:12px}
 .last-upd{font-size:9px;color:var(--t3);padding:2px 14px 6px}
+.token-banner{display:none;background:var(--am2);border:1px solid rgba(253,203,110,.25);border-radius:var(--r2);padding:10px 13px;margin:10px 14px 0;font-size:12px;color:var(--am);line-height:1.6}
+.token-banner a{color:var(--am);font-weight:700;cursor:pointer;text-decoration:underline}
 
-/* ── SHEETS ── */
-.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:200;align-items:flex-end;justify-content:center}
+/* SHEETS */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:200;align-items:flex-end}
 .overlay.open{display:flex}
-.sheet{background:var(--bg2);border-radius:18px 18px 0 0;border:1px solid var(--b2);border-bottom:none;width:100%;max-width:480px;max-height:93vh;overflow-y:auto;padding-bottom:max(env(safe-area-inset-bottom),16px)}
+.sheet{background:var(--bg2);border-radius:18px 18px 0 0;border:1px solid var(--b2);width:100%;max-width:480px;max-height:93vh;overflow-y:auto;padding-bottom:max(env(safe-area-inset-bottom),16px)}
 .sh{width:34px;height:3px;background:var(--b3);border-radius:2px;margin:9px auto 0}
-.sheet-head{display:flex;align-items:center;justify-content:space-between;padding:13px 16px 10px;border-bottom:1px solid var(--b)}
-.sheet-title{font-size:15px;font-weight:700}
-.sheet-x{background:var(--bg3);border:none;color:var(--t2);width:26px;height:26px;border-radius:50%;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center}
+.sh-h{display:flex;align-items:center;justify-content:space-between;padding:13px 16px 10px;border-bottom:1px solid var(--b)}
+.sh-t{font-size:15px;font-weight:700}
+.sh-x{background:var(--bg3);border:none;color:var(--t2);width:26px;height:26px;border-radius:50%;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center}
 .fbody{padding:14px 16px;display:flex;flex-direction:column;gap:11px}
 .frow{display:grid;grid-template-columns:1fr 1fr;gap:9px}
 .fgrp{display:flex;flex-direction:column;gap:3px}
 .flbl{font-size:10px;color:var(--t2);font-weight:700;letter-spacing:.3px;text-transform:uppercase}
-.finp{background:var(--bg3);border:1px solid var(--b2);border-radius:var(--r2);padding:9px 11px;color:var(--t);font-size:14px;width:100%;outline:none;-webkit-appearance:none}
+.finp{background:var(--bg3);border:1px solid var(--b2);border-radius:var(--r2);padding:9px 11px;color:var(--t);font-size:14px;width:100%;outline:none}
 .finp:focus{border-color:var(--ac2)}
 select.finp option{background:var(--bg3)}
-.finp-hint{font-size:9px;color:var(--t3);margin-top:2px}
-.btn-p{background:var(--ac);color:#fff;border:none;border-radius:var(--r);padding:13px;font-size:15px;font-weight:700;width:100%;cursor:pointer;margin-top:2px}
-.btn-p:active{opacity:.85}
+.hint{font-size:9px;color:var(--t3);margin-top:2px}
+.bp{background:var(--ac);color:#fff;border:none;border-radius:var(--r);padding:13px;font-size:15px;font-weight:700;width:100%;cursor:pointer;margin-top:2px}
+.bp:active{opacity:.85}
 
-/* instrument search dropdown */
+/* SEARCH */
 .srch-wrap{position:relative}
-.srch-res{position:absolute;top:calc(100% + 3px);left:0;right:0;background:var(--bg4);border:1px solid var(--b3);border-radius:var(--r2);z-index:50;max-height:220px;overflow-y:auto}
+.srch-res{position:absolute;top:calc(100% + 3px);left:0;right:0;background:var(--bg4);border:1px solid var(--b3);border-radius:var(--r2);z-index:50;max-height:220px;overflow-y:auto;display:none}
 .sri{padding:9px 11px;cursor:pointer;border-bottom:1px solid var(--b)}
 .sri:last-child{border-bottom:none}
 .sri:active{background:var(--bg5)}
@@ -145,89 +126,79 @@ select.finp option{background:var(--bg3)}
 .sri-meta{font-size:10px;color:var(--t2);margin-top:2px}
 .sri-msg{padding:12px;text-align:center;font-size:12px;color:var(--t2)}
 
-/* sell summary */
+/* PROFILE MANAGE */
+.pm-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--b);font-size:13px}
+.divider{border:none;border-top:1px solid var(--b);margin:4px 0}
+.sec-sep{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.7px;padding:10px 0 6px;font-weight:700}
+
 .sell-sum{background:var(--bg3);border-radius:var(--r2);padding:10px 13px;margin-bottom:4px}
 .sell-row{display:flex;justify-content:space-between;font-size:12px;padding:2px 0}
 .sell-row span:first-child{color:var(--t2)}
 
-/* profile manage */
-.pm-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--b);font-size:13px}
-.divider{border:none;border-top:1px solid var(--b);margin:4px 0}
-.sec-sep{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.7px;padding:10px 0 6px;font-weight:700}
+.loading{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--bg2);border:1px solid var(--b2);border-radius:var(--r);padding:16px 24px;font-size:13px;color:var(--t2);z-index:300}
 </style>
 </head>
 <body>
 
-<!-- ══ GATE ═══════════════════════════════════════════════════════════════ -->
+<!-- GATE -->
 <div id="gate">
-  <div class="gate-logo">F<em>&</em>O</div>
-  <div class="gate-tagline">Family derivatives dashboard</div>
+  <div class="logo">F<em>&</em>O</div>
+  <div class="tagline">Family derivatives dashboard</div>
   <div class="gate-card">
     <h2>Enter PIN</h2>
-    <p>Enter the family PIN to access the dashboard.</p>
-    <div class="pin-dots" id="pinDots">
-      <div class="pin-dot" id="d0"></div>
-      <div class="pin-dot" id="d1"></div>
-      <div class="pin-dot" id="d2"></div>
-      <div class="pin-dot" id="d3"></div>
+    <p>Enter the family PIN to access.</p>
+    <div class="pin-dots">
+      <div class="pin-dot" id="d0"></div><div class="pin-dot" id="d1"></div>
+      <div class="pin-dot" id="d2"></div><div class="pin-dot" id="d3"></div>
     </div>
-    <div class="pin-error" id="pinError"></div>
+    <div class="pin-error" id="pinErr"></div>
     <div class="numpad">
-      <div class="nk" onclick="pinKey('1')">1</div>
-      <div class="nk" onclick="pinKey('2')">2</div>
-      <div class="nk" onclick="pinKey('3')">3</div>
-      <div class="nk" onclick="pinKey('4')">4</div>
-      <div class="nk" onclick="pinKey('5')">5</div>
-      <div class="nk" onclick="pinKey('6')">6</div>
-      <div class="nk" onclick="pinKey('7')">7</div>
-      <div class="nk" onclick="pinKey('8')">8</div>
-      <div class="nk" onclick="pinKey('9')">9</div>
-      <div class="nk empty"></div>
-      <div class="nk" onclick="pinKey('0')">0</div>
-      <div class="nk del" onclick="pinDel()">⌫</div>
+      <div class="nk" onclick="pinKey('1')">1</div><div class="nk" onclick="pinKey('2')">2</div><div class="nk" onclick="pinKey('3')">3</div>
+      <div class="nk" onclick="pinKey('4')">4</div><div class="nk" onclick="pinKey('5')">5</div><div class="nk" onclick="pinKey('6')">6</div>
+      <div class="nk" onclick="pinKey('7')">7</div><div class="nk" onclick="pinKey('8')">8</div><div class="nk" onclick="pinKey('9')">9</div>
+      <div class="nk empty"></div><div class="nk" onclick="pinKey('0')">0</div><div class="nk del" onclick="pinDel()">⌫</div>
     </div>
   </div>
-  <div class="gate-owner-link">Owner? <a onclick="ownerLogin()">Login with Upstox</a> to refresh the price token.</div>
+  <div class="owner-link">Owner? <a onclick="ownerLogin()">Login with Upstox</a> to refresh token.</div>
 </div>
 
-<!-- ══ APP ════════════════════════════════════════════════════════════════ -->
+<!-- APP -->
 <div id="app">
   <div class="hdr">
     <div class="hdr-row">
-      <div class="app-title">F<em>&</em>O <span style="color:var(--t2);font-weight:400;font-size:13px">Family</span></div>
+      <div class="title">F<em>&</em>O <span style="color:var(--t2);font-weight:400;font-size:13px">Family</span></div>
       <div class="hdr-right">
         <div class="mkt-pill"><span class="mkt-dot" id="mktDot"></span><span id="mktLbl">—</span></div>
-        <button class="ibtn" id="refBtn" onclick="refreshPrices()">
-          <svg id="refIco" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        <button class="ibtn" onclick="refreshPrices()">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
         </button>
         <button class="ibtn" onclick="openSheet('settingsSheet')">⚙</button>
       </div>
     </div>
     <div class="ptabs" id="ptabs"></div>
   </div>
-  <div id="tokenBanner">
-    ⚠ Live prices unavailable — the Upstox token has expired.
-    <a onclick="ownerLogin()">Owner: tap here to refresh</a> (takes 30 seconds).
-  </div>
+  <div class="token-banner" id="tokenBanner">⚠ Token expired. <a onclick="ownerLogin()">Owner: refresh here</a></div>
   <div class="last-upd" id="lastUpd"></div>
   <div class="sum" id="sum"></div>
   <div id="main"></div>
 </div>
 
-<!-- ADD POSITION SHEET -->
-<div class="overlay" id="addSheet">
+<div class="loading" id="loading">Syncing...</div>
+
+<!-- ADD POSITION -->
+<div class="overlay" id="addPosSheet">
   <div class="sheet">
     <div class="sh"></div>
-    <div class="sheet-head"><span class="sheet-title">Add Position</span><button class="sheet-x" onclick="closeSheet('addSheet')">✕</button></div>
+    <div class="sh-h"><span class="sh-t">Add Position</span><button class="sh-x" onclick="closeSheet('addPosSheet')">✕</button></div>
     <div class="fbody">
-      <div class="fgrp"><span class="flbl">Profile</span><select class="finp" id="f_profile"></select></div>
+      <div class="fgrp"><span class="flbl">Profile</span><select class="finp" id="f_prof"></select></div>
       <div class="fgrp">
         <span class="flbl">Search Instrument</span>
         <div class="srch-wrap">
-          <input class="finp" id="f_search" placeholder="Type: NIFTY, BANKNIFTY, RELIANCE…" autocapitalize="characters" oninput="onSearch(this.value)" autocomplete="off">
-          <div class="srch-res" id="srchRes" style="display:none"></div>
+          <input class="finp" id="f_srch" placeholder="NIFTY, BANKNIFTY, RELIANCE…" oninput="onSearch(this.value)" autocomplete="off">
+          <div class="srch-res" id="srchRes"></div>
         </div>
-        <span class="finp-hint">Select from list — lot size &amp; expiry fill automatically</span>
+        <span class="hint">Select from list</span>
       </div>
       <div id="selInstr" style="display:none;background:var(--bg3);border:1px solid var(--b2);border-radius:var(--r2);padding:9px 12px">
         <div style="font-size:12px;font-weight:700" id="si_name"></div>
@@ -235,226 +206,176 @@ select.finp option{background:var(--bg3)}
         <button onclick="clearInstr()" style="font-size:10px;color:var(--rd);background:none;border:none;cursor:pointer;margin-top:4px">✕ Clear</button>
       </div>
       <div class="frow">
-        <div class="fgrp"><span class="flbl">Lots</span><input class="finp" id="f_lots" type="number" placeholder="1" min="1"></div>
-        <div class="fgrp"><span class="flbl">Lot Size</span><input class="finp" id="f_lsz" type="number" placeholder="25" style="opacity:.7" readonly></div>
+        <div class="fgrp"><span class="flbl">Lots</span><input class="finp" id="f_lots" type="number" min="1"></div>
+        <div class="fgrp"><span class="flbl">Lot Size</span><input class="finp" id="f_lsz" readonly style="opacity:.7"></div>
       </div>
       <div class="frow">
-        <div class="fgrp"><span class="flbl">Buy Price ₹</span><input class="finp" id="f_bp" type="number" placeholder="0.00" step="0.05"></div>
+        <div class="fgrp"><span class="flbl">Buy Price ₹</span><input class="finp" id="f_bp" type="number" step="0.05"></div>
         <div class="fgrp"><span class="flbl">Buy Date</span><input class="finp" id="f_dt" type="date"></div>
       </div>
-      <div class="fgrp"><span class="flbl">Margin Blocked ₹</span><input class="finp" id="f_mg" type="number" placeholder="e.g. 80000"></div>
-      <div class="fgrp"><span class="flbl">Notes (optional)</span><input class="finp" id="f_nt" placeholder="hedge, target, etc."></div>
-      <button class="btn-p" onclick="savePos()">Add Position</button>
+      <div class="fgrp"><span class="flbl">Margin ₹</span><input class="finp" id="f_mg" type="number"></div>
+      <div class="fgrp"><span class="flbl">Notes</span><input class="finp" id="f_nt"></div>
+      <button class="bp" onclick="savePos()">Add Position</button>
     </div>
   </div>
 </div>
 
-<!-- SELL SHEET -->
+<!-- SELL -->
 <div class="overlay" id="sellSheet">
   <div class="sheet">
     <div class="sh"></div>
-    <div class="sheet-head"><span class="sheet-title">Close Position</span><button class="sheet-x" onclick="closeSheet('sellSheet')">✕</button></div>
+    <div class="sh-h"><span class="sh-t">Close Position</span><button class="sh-x" onclick="closeSheet('sellSheet')">✕</button></div>
     <div class="fbody">
       <div class="sell-sum" id="sellInfo"></div>
       <div class="frow">
         <div class="fgrp"><span class="flbl">Sell Price ₹</span><input class="finp" id="s_px" type="number" step="0.05"></div>
         <div class="fgrp"><span class="flbl">Sell Date</span><input class="finp" id="s_dt" type="date"></div>
       </div>
-      <button class="btn-p" onclick="confirmSell()" style="background:var(--rd)">Close Position</button>
+      <button class="bp" style="background:var(--rd)" onclick="confirmSell()">Close Position</button>
     </div>
   </div>
 </div>
 
-<!-- SETTINGS SHEET -->
+<!-- SETTINGS -->
 <div class="overlay" id="settingsSheet">
   <div class="sheet">
     <div class="sh"></div>
-    <div class="sheet-head"><span class="sheet-title">Settings</span><button class="sheet-x" onclick="closeSheet('settingsSheet')">✕</button></div>
+    <div class="sh-h"><span class="sh-t">Settings</span><button class="sh-x" onclick="closeSheet('settingsSheet')">✕</button></div>
     <div class="fbody">
       <div class="sec-sep">Profiles</div>
-      <div id="profManage" style="margin-bottom:10px"></div>
+      <div id="profList"></div>
       <div class="frow" style="margin-top:6px">
-        <input class="finp" id="newPN" placeholder="New profile name">
-        <button class="btn-p" style="margin-top:0" onclick="addProfile()">Add</button>
+        <input class="finp" id="newProf" placeholder="Profile name">
+        <button class="bp" style="margin-top:0" onclick="addProf()">Add</button>
       </div>
       <hr class="divider">
       <div class="sec-sep">Data</div>
       <div style="display:flex;gap:8px">
-        <button class="bsm" style="flex:1;padding:10px;font-size:12px" onclick="exportData()">Export JSON</button>
-        <button class="bsm" style="flex:1;padding:10px;font-size:12px" onclick="document.getElementById('impFile').click()">Import JSON</button>
+        <button class="bsm" style="flex:1;padding:10px" onclick="exportData()">Export</button>
+        <button class="bsm" style="flex:1;padding:10px" onclick="importClick()">Import</button>
       </div>
       <input type="file" id="impFile" accept=".json" style="display:none" onchange="importData(event)">
       <hr class="divider">
-      <div style="text-align:center">
-        <span style="font-size:11px;color:var(--t3);cursor:pointer;text-decoration:underline" onclick="lockApp()">Lock dashboard</span>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ADD PROFILE SHEET -->
-<div class="overlay" id="qpSheet">
-  <div class="sheet">
-    <div class="sh"></div>
-    <div class="sheet-head"><span class="sheet-title">Add Profile</span><button class="sheet-x" onclick="closeSheet('qpSheet')">✕</button></div>
-    <div class="fbody">
-      <div class="fgrp"><span class="flbl">Name</span><input class="finp" id="qpName" placeholder="e.g. Dad, Mom, Rahul"></div>
-      <button class="btn-p" onclick="quickAddProfile()">Create Profile</button>
+      <div style="text-align:center"><span style="font-size:11px;color:var(--t3);cursor:pointer;text-decoration:underline" onclick="lockApp()">Lock</span></div>
     </div>
   </div>
 </div>
 
 <script>
-// ═══════════════════════════════════════════════
-//  CONFIG  — update WORKER after Cloudflare deploy
-// ═══════════════════════════════════════════════
-const APP_VERSION = "BUILD_TIMESTAMP"; // Auto-replaced during build
-const API_KEY    = "5764ef69-8599-489f-9b5a-34b2af66ba3e";
-const REDIRECT   = "https://deepshahiitb.github.io/fo-dashboard/";
-const WORKER     = "https://fo-dashboard.deepshah-iitb.workers.dev";
-const AUTH_URL   = `https://api.upstox.com/v2/login/authorization/dialog?response_type=code&client_id=${API_KEY}&redirect_uri=${encodeURIComponent(REDIRECT)}`;
+const WORKER = "https://fo-dashboard.deepshah-iitb.workers.dev";
+const API_KEY = "5764ef69-8599-489f-9b5a-34b2af66ba3e";
+const REDIRECT = "https://deepshahiitb.github.io/fo-dashboard/";
+const AUTH_URL = `https://api.upstox.com/v2/login/authorization/dialog?response_type=code&client_id=${API_KEY}&redirect_uri=${encodeURIComponent(REDIRECT)}`;
 
-// ═══════════════════════════════════════════════
-//  VERSION CHECK — auto-reload code only, keep all data
-// ═══════════════════════════════════════════════
-async function checkVersion() {
+let S = {profiles:[], positions:[], activeProfile:'overall', lastRefresh:null};
+let PIN = '';
+let sellId = null;
+let selInstr = null;
+let srchTimer = null;
+
+// ═══ CLOUD STORAGE ═══
+async function loadData() {
+  if (!PIN) return;
   try {
-    // Fetch index.html with cache-busting query
-    const response = await fetch(window.location.href + '?t=' + Date.now(), {
-      method: 'HEAD',
-      cache: 'no-store'
+    const r = await fetch(`${WORKER}/data`, {headers:{'X-PIN':PIN}});
+    if (!r.ok) return;
+    const d = await r.json();
+    S.profiles = d.profiles || [];
+    S.positions = d.positions || [];
+    if (!S.activeProfile || S.activeProfile === 'overall') S.activeProfile = 'overall';
+    render();
+  } catch(e) { console.error('Load failed', e); }
+}
+
+async function saveData() {
+  if (!PIN) return;
+  showLoading();
+  try {
+    await fetch(`${WORKER}/data`, {
+      method:'PUT',
+      headers:{'Content-Type':'application/json','X-PIN':PIN},
+      body:JSON.stringify({profiles:S.profiles, positions:S.positions})
     });
-    const lastModified = response.headers.get('Last-Modified');
-    
-    if (lastModified) {
-      const stored = localStorage.getItem('fo_last_modified');
-      if (stored && stored !== lastModified) {
-        console.log('New version detected, reloading...');
-        localStorage.setItem('fo_last_modified', lastModified);
-        window.location.reload(true);
-        return false;
-      }
-      localStorage.setItem('fo_last_modified', lastModified);
-    }
-  } catch(e) {
-    // If check fails, continue normally
-    console.log('Version check failed, continuing...');
-  }
-  return true;
+  } catch(e) { console.error('Save failed', e); }
+  hideLoading();
 }
 
-// ═══════════════════════════════════════════════
-//  STATE
-// ═══════════════════════════════════════════════
-let S = { profiles:[], positions:[], activeProfile:'overall', lastRefresh:null };
-let PIN = ''; // entered PIN, kept in memory only
+function showLoading() { document.getElementById('loading').style.display='block'; }
+function hideLoading() { document.getElementById('loading').style.display='none'; }
 
-function save() { localStorage.setItem('fo_v4', JSON.stringify(S)); }
-function load() {
-  try { const d = localStorage.getItem('fo_v4'); if(d) S={...S,...JSON.parse(d)}; } catch(e){}
-  // No default profiles - user adds their own
-}
-
-// ═══════════════════════════════════════════════
-//  PIN GATE
-// ═══════════════════════════════════════════════
+// ═══ PIN ═══
 let pinEntry = '';
-const PIN_LEN = 4; // must match DASHBOARD_PIN length set in Cloudflare
-
 function pinKey(k) {
-  if (pinEntry.length >= PIN_LEN) return;
+  if (pinEntry.length >= 4) return;
   pinEntry += k;
-  updatePinDots();
-  if (pinEntry.length === PIN_LEN) setTimeout(submitPin, 120);
+  for (let i=0;i<4;i++) document.getElementById('d'+i).classList.toggle('filled', i < pinEntry.length);
+  if (pinEntry.length === 4) setTimeout(submitPin, 120);
 }
-function pinDel() { pinEntry = pinEntry.slice(0,-1); updatePinDots(); document.getElementById('pinError').textContent=''; }
-function updatePinDots() {
-  for (let i=0;i<PIN_LEN;i++) {
-    document.getElementById('d'+i).classList.toggle('filled', i < pinEntry.length);
-  }
+function pinDel() {
+  pinEntry = pinEntry.slice(0,-1);
+  for (let i=0;i<4;i++) document.getElementById('d'+i).classList.toggle('filled', i < pinEntry.length);
+  document.getElementById('pinErr').textContent='';
 }
 
 async function submitPin() {
-  // validate PIN against worker by calling /ping
   try {
-    const r = await fetch(`${WORKER}/ping`, { headers:{'X-PIN': pinEntry} });
-    if (r.ok) {
-      PIN = pinEntry;
-      localStorage.setItem('fo_pin_session', PIN); // session cache
-      enterApp();
-    } else {
-      document.getElementById('pinError').textContent = 'Wrong PIN. Try again.';
-      pinEntry = ''; updatePinDots();
-    }
+    const r = await fetch(`${WORKER}/ping`, {headers:{'X-PIN':pinEntry}});
+    if (r.ok) { PIN = pinEntry; sessionStorage.setItem('pin',PIN); enterApp(); }
+    else { document.getElementById('pinErr').textContent='Wrong PIN'; pinEntry=''; pinDel(); }
   } catch(e) {
-    // if worker unreachable, allow cached PIN
-    const cached = localStorage.getItem('fo_pin_session');
+    const cached = sessionStorage.getItem('pin');
     if (cached && pinEntry === cached) { PIN = pinEntry; enterApp(); }
-    else {
-      document.getElementById('pinError').textContent = 'Cannot connect. Check internet.';
-      pinEntry = ''; updatePinDots();
-    }
+    else { document.getElementById('pinErr').textContent='Cannot connect'; pinEntry=''; pinDel(); }
   }
 }
 
 function enterApp() {
-  document.getElementById('gate').style.display = 'none';
-  document.getElementById('app').style.display  = 'flex';
-  load(); render();
-  checkTokenStatus();
+  document.getElementById('gate').style.display='none';
+  document.getElementById('app').style.display='flex';
+  loadData();
+  checkToken();
   if (isMarketOpen()) refreshPrices();
-  setInterval(() => { if(isMarketOpen()) refreshPrices(); }, 3*60*1000);
+  setInterval(()=>{ if(isMarketOpen()) refreshPrices(); }, 3*60*1000);
+  setInterval(()=>{ loadData(); }, 30*1000); // auto-sync every 30s
   setInterval(renderMarket, 30000);
 }
 
 function lockApp() {
-  PIN = '';
-  localStorage.removeItem('fo_pin_session');
-  pinEntry = ''; updatePinDots();
-  document.getElementById('pinError').textContent = '';
-  document.getElementById('gate').style.display = 'flex';
-  document.getElementById('app').style.display  = 'none';
+  PIN=''; sessionStorage.removeItem('pin'); pinEntry=''; pinDel();
+  document.getElementById('gate').style.display='flex';
+  document.getElementById('app').style.display='none';
   closeSheet('settingsSheet');
 }
 
-// ═══════════════════════════════════════════════
-//  OWNER OAUTH (token refresh)
-// ═══════════════════════════════════════════════
+// ═══ OWNER OAUTH ═══
 function ownerLogin() { window.location.href = AUTH_URL; }
-
-async function handleOAuthCallback() {
+async function handleOAuth() {
   const params = new URLSearchParams(window.location.search);
-  const code   = params.get('code');
+  const code = params.get('code');
   if (!code) return;
   window.history.replaceState({}, '', window.location.pathname);
   try {
     const r = await fetch(`${WORKER}/admin/token`, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({code})
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({code})
     });
     const d = await r.json();
-    if (d.ok) {
-      document.getElementById('tokenBanner').style.display = 'none';
-      alert('✓ Token refreshed! Live prices are now active for everyone.');
-    } else {
-      alert('Token exchange failed: ' + JSON.stringify(d.error));
-    }
-  } catch(e) { alert('Could not reach worker: ' + e.message); }
+    if (d.ok) { document.getElementById('tokenBanner').style.display='none'; alert('✓ Token refreshed!'); }
+    else alert('Token exchange failed');
+  } catch(e) { alert('Worker unreachable'); }
 }
 
-async function checkTokenStatus() {
+async function checkToken() {
   if (!PIN) return;
   try {
-    const r = await fetch(`${WORKER}/ping`, { headers:{'X-PIN':PIN} });
+    const r = await fetch(`${WORKER}/ping`, {headers:{'X-PIN':PIN}});
     const d = await r.json();
     document.getElementById('tokenBanner').style.display = d.hasToken ? 'none' : 'block';
   } catch(e){}
 }
 
-// ═══════════════════════════════════════════════
-//  MARKET HOURS
-// ═══════════════════════════════════════════════
+// ═══ MARKET ═══
 function isMarketOpen() {
   const ist = new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Kolkata'}));
   if ([0,6].includes(ist.getDay())) return false;
@@ -463,38 +384,35 @@ function isMarketOpen() {
 }
 function todayIST() { return new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'}); }
 
-// ═══════════════════════════════════════════════
-//  LIVE PRICES
-// ═══════════════════════════════════════════════
+function renderMarket() {
+  const on=isMarketOpen();
+  document.getElementById('mktDot').className='mkt-dot'+(on?' on':'');
+  document.getElementById('mktLbl').textContent=on?'Open':'Closed';
+}
+
+// ═══ PRICES ═══
 async function refreshPrices() {
   if (!PIN) return;
-  const btn = document.getElementById('refBtn');
-  btn.style.opacity='.4';
   const openPos = S.positions.filter(p=>!p.closed&&p.instrKey);
-  if (!openPos.length) { btn.style.opacity='1'; return; }
-
+  if (!openPos.length) return;
   const keys = [...new Set(openPos.map(p=>p.instrKey))].join('|');
   try {
-    const r = await fetch(`${WORKER}/quote?keys=${encodeURIComponent(keys)}`, { headers:{'X-PIN':PIN} });
-    if (r.status===401) { checkTokenStatus(); btn.style.opacity='1'; return; }
+    const r = await fetch(`${WORKER}/quote?keys=${encodeURIComponent(keys)}`, {headers:{'X-PIN':PIN}});
+    if (r.status===401) { checkToken(); return; }
     const data = await r.json();
     if (data.data) {
       for (const p of S.positions) {
         const q = data.data[p.instrKey];
-        if (q) { p.ltp=q.last_price||0; p.prevClose=q.ohlc?.close||0; p.ltpChgPct=q.net_change_percentage||0; p.ltpChg=q.net_change||0; }
+        if (q) { p.ltp=q.last_price||0; p.prevClose=q.ohlc?.close||0; p.ltpChgPct=q.net_change_percentage||0; }
       }
       S.lastRefresh = new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'});
-      save(); render();
+      await saveData();
+      render();
     }
   } catch(e){}
-  btn.style.opacity='1';
 }
 
-// ═══════════════════════════════════════════════
-//  INSTRUMENT SEARCH
-// ═══════════════════════════════════════════════
-let srchTimer=null, selInstr=null;
-
+// ═══ SEARCH ═══
 function onSearch(v) {
   clearTimeout(srchTimer);
   const el = document.getElementById('srchRes');
@@ -505,15 +423,13 @@ function onSearch(v) {
 
 async function doSearch(q) {
   const el = document.getElementById('srchRes');
-  if (!PIN) { el.innerHTML='<div class="sri-msg">Enter PIN first</div>'; return; }
+  if (!PIN) { el.innerHTML='<div class="sri-msg">Not logged in</div>'; return; }
   try {
-    const r = await fetch(`${WORKER}/search?q=${encodeURIComponent(q)}`, { headers:{'X-PIN':PIN} });
-    if (r.status===503) { el.innerHTML='<div class="sri-msg">Token expired — owner needs to re-login</div>'; return; }
+    const r = await fetch(`${WORKER}/search?q=${encodeURIComponent(q)}`, {headers:{'X-PIN':PIN}});
+    if (r.status===503) { el.innerHTML='<div class="sri-msg">Token expired</div>'; return; }
     const data = await r.json();
-    const items = (data.data||[])
-      .filter(i=>['FUTIDX','FUTSTK','OPTIDX','OPTSTK','FUT','CE','PE'].includes(i.instrument_type))
-      .slice(0,20);
-    if (!items.length) { el.innerHTML='<div class="sri-msg">No F&O results</div>'; return; }
+    const items = (data.data||[]).filter(i=>['FUTIDX','FUTSTK','OPTIDX','OPTSTK','FUT','CE','PE'].includes(i.instrument_type)).slice(0,20);
+    if (!items.length) { el.innerHTML='<div class="sri-msg">No results</div>'; return; }
     el.innerHTML = items.map(i=>{
       const tp = iType(i);
       return `<div class="sri" onclick='pickInstr(${JSON.stringify(i)})'>
@@ -521,7 +437,7 @@ async function doSearch(q) {
         <div class="sri-meta">${tp}${i.expiry?' · '+i.expiry:''}${i.strike_price?' · ₹'+i.strike_price:''} · Lot:${i.lot_size||'?'} · ${i.exchange||''}</div>
       </div>`;
     }).join('');
-  } catch(e) { el.innerHTML='<div class="sri-msg">Error. Check connection.</div>'; }
+  } catch(e) { el.innerHTML='<div class="sri-msg">Error</div>'; }
 }
 
 function iType(i) {
@@ -534,27 +450,25 @@ function iType(i) {
 }
 
 function pickInstr(i) {
-  const type = iType(i);
-  selInstr = { symbol:i.name||i.trading_symbol, tradingSym:i.trading_symbol, instrKey:i.instrument_key, lotSize:i.lot_size||1, type, expiry:i.expiry||'', strike:i.strike_price||null, exchange:i.exchange||'NSE' };
-  document.getElementById('f_search').value = i.trading_symbol||i.name;
+  selInstr = {symbol:i.name||i.trading_symbol, tradingSym:i.trading_symbol, instrKey:i.instrument_key, lotSize:i.lot_size||1, type:iType(i), expiry:i.expiry||'', strike:i.strike_price||null, exchange:i.exchange||'NSE'};
+  document.getElementById('f_srch').value = i.trading_symbol||i.name;
   document.getElementById('srchRes').style.display='none';
   document.getElementById('f_lsz').value = i.lot_size||'';
   document.getElementById('selInstr').style.display='block';
   document.getElementById('si_name').textContent = i.trading_symbol||i.name;
-  document.getElementById('si_meta').textContent = `${type} · ${i.exchange||''}${i.expiry?' · '+i.expiry:''}${i.strike_price?' · ₹'+i.strike_price:''} · Lot size: ${i.lot_size||'?'}`;
+  document.getElementById('si_meta').textContent = `${selInstr.type} · ${i.exchange||''}${i.expiry?' · '+i.expiry:''}${i.strike_price?' · ₹'+i.strike_price:''} · Lot: ${i.lot_size||'?'}`;
 }
+
 function clearInstr() {
   selInstr=null;
-  document.getElementById('f_search').value='';
+  document.getElementById('f_srch').value='';
   document.getElementById('f_lsz').value='';
   document.getElementById('selInstr').style.display='none';
 }
 
-// ═══════════════════════════════════════════════
-//  CALCS
-// ═══════════════════════════════════════════════
-const ltp    = p => p.closed?(p.sellPrice||0):(p.ltp||p.buyPrice||0);
-const val    = p => ltp(p)*p.lots*p.lotSize;
+// ═══ CALCS ═══
+const ltp = p => p.closed?(p.sellPrice||0):(p.ltp||p.buyPrice||0);
+const val = p => ltp(p)*p.lots*p.lotSize;
 const totPnL = p => (ltp(p)-p.buyPrice)*p.lots*p.lotSize;
 const dayPnL = p => { if(p.closed) return 0; const pv=p.prevClose||p.ltp||p.buyPrice||0; return (ltp(p)-pv)*p.lots*p.lotSize; };
 
@@ -570,33 +484,23 @@ function smry(pos) {
   };
 }
 
-// ═══════════════════════════════════════════════
-//  FORMAT
-// ═══════════════════════════════════════════════
+// ═══ FORMAT ═══
 const fi = (n,d=0) => isNaN(n)?'—':new Intl.NumberFormat('en-IN',{minimumFractionDigits:d,maximumFractionDigits:d}).format(n);
 const fp = n => (n>=0?'+':'')+fi(n,0);
 const pc = n => n>0?'pos':n<0?'neg':'neu';
 const fd = d => d?new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'2-digit'}):'—';
 
-// ═══════════════════════════════════════════════
-//  RENDER
-// ═══════════════════════════════════════════════
+// ═══ RENDER ═══
 function render() {
   renderMarket(); renderTabs(); renderSum(); renderMain();
   document.getElementById('lastUpd').textContent = S.lastRefresh?`Prices as of ${S.lastRefresh} IST`:'';
 }
 
-function renderMarket() {
-  const on=isMarketOpen();
-  document.getElementById('mktDot').className='mkt-dot'+(on?' on':'');
-  document.getElementById('mktLbl').textContent=on?'Open':'Closed';
-}
-
 function renderTabs() {
-  document.getElementById('ptabs').innerHTML =
-    `<button class="ptab ${S.activeProfile==='overall'?'active':''}" onclick="setProf('overall')">Overall</button>`
+  const t = document.getElementById('ptabs');
+  t.innerHTML = `<button class="ptab ${S.activeProfile==='overall'?'active':''}" onclick="setProf('overall')">Overall</button>`
     + S.profiles.map(p=>`<button class="ptab ${S.activeProfile===p.id?'active':''}" onclick="setProf('${p.id}')">${p.name}</button>`).join('')
-    + `<button class="ptab add" onclick="openSheet('qpSheet')">+ Add</button>`;
+    + `<button class="ptab add" onclick="openAddProf()">+ Add</button>`;
 }
 
 function renderSum() {
@@ -611,12 +515,10 @@ function renderSum() {
 }
 
 function renderMain() {
-  // If no profiles exist yet, show onboarding
   if (!S.profiles.length) {
-    document.getElementById('main').innerHTML = `<div class="empty">No profiles yet.<br>Tap <strong>⚙ Settings</strong> to add family members.</div>`;
+    document.getElementById('main').innerHTML=`<div class="empty">No profiles yet.<br>Tap <strong>+ Add</strong> or <strong>⚙</strong> to create one.</div>`;
     return;
   }
-
   let pos=S.positions;
   if (S.activeProfile!=='overall') pos=pos.filter(p=>p.profileId===S.activeProfile);
   const open=pos.filter(p=>!p.closed), closed=pos.filter(p=>p.closed);
@@ -625,23 +527,23 @@ function renderMain() {
     for (const pr of S.profiles) {
       const pp=open.filter(p=>p.profileId===pr.id);
       if (!pp.length) continue;
-      html+=mkSec(pr.name,pp,false,pr.id);
+      html+=mkSec(pr.name,pp,false);
     }
-    if (closed.length) html+=mkSec('Closed',closed,true,null);
+    if (closed.length) html+=mkSec('Closed',closed,true);
   } else {
-    html+=mkSec('Open Positions',open,false,S.activeProfile);
-    if (closed.length) html+=mkSec('Closed',closed,true,null);
+    html+=mkSec('Open Positions',open,false);
+    if (closed.length) html+=mkSec('Closed',closed,true);
   }
-  if (!open.length&&!closed.length && S.activeProfile !== 'overall') html=`<div class="empty">No positions yet.<br>Tap <strong>+ Add</strong> to get started.</div>`;
+  if (!open.length&&!closed.length && S.activeProfile!=='overall') {
+    html=`<div class="empty">No positions.<br>Tap <strong>+ New Position</strong> below to add one.</div>`;
+  }
   document.getElementById('main').innerHTML=html;
 }
 
-function mkSec(title,positions,isClosed,pid) {
-  // Show Add button for all non-closed sections when viewing a specific profile
-  const showAdd = !isClosed && S.activeProfile !== 'overall';
-  const addBtn = showAdd ? `<button class="btn-add" onclick="openAdd('${pid||S.activeProfile}')">+ Add</button>` : '';
+function mkSec(title,positions,isClosed) {
+  const addBtn = !isClosed && S.activeProfile!=='overall' ? `<button class="btn-add" onclick="openAddPos()">+ New Position</button>` : '';
   return `<div class="sec"><div class="sec-h"><span class="sec-t">${title} (${positions.length})</span>${addBtn}</div>`
-    +(positions.length?positions.map(mkCard).join(''):'<div style="font-size:11px;color:var(--t3);padding:6px 0">None</div>')
+    +(positions.length?positions.map(mkCard).join(''):`<div style="font-size:11px;color:var(--t3);padding:6px 0">None</div>`)
     +'</div>';
 }
 
@@ -668,12 +570,12 @@ function mkCard(p) {
       </div>
     </div>
     <div class="hc-grid">
-      <div class="hcell"><div class="hcell-l">Lots</div><div class="hcell-v">${p.lots}×${fi(p.lotSize)}</div></div>
-      <div class="hcell"><div class="hcell-l">Buy</div><div class="hcell-v">₹${fi(p.buyPrice,2)}</div></div>
-      <div class="hcell"><div class="hcell-l">${p.closed?'Sell':'LTP'}</div><div class="hcell-v">₹${fi(p.closed?p.sellPrice:l,2)}</div></div>
-      <div class="hcell"><div class="hcell-l">Value</div><div class="hcell-v">₹${fi(v)}</div></div>
-      <div class="hcell"><div class="hcell-l">Margin</div><div class="hcell-v">${p.margin?'₹'+fi(p.margin):'—'}</div></div>
-      <div class="hcell"><div class="hcell-l">Bought</div><div class="hcell-v">${fd(p.buyDate)}</div></div>
+      <div class="hcell"><div class="hcl">Lots</div><div class="hcv">${p.lots}×${fi(p.lotSize)}</div></div>
+      <div class="hcell"><div class="hcl">Buy</div><div class="hcv">₹${fi(p.buyPrice,2)}</div></div>
+      <div class="hcell"><div class="hcl">${p.closed?'Sell':'LTP'}</div><div class="hcv">₹${fi(p.closed?p.sellPrice:l,2)}</div></div>
+      <div class="hcell"><div class="hcl">Value</div><div class="hcv">₹${fi(v)}</div></div>
+      <div class="hcell"><div class="hcl">Margin</div><div class="hcv">${p.margin?'₹'+fi(p.margin):'—'}</div></div>
+      <div class="hcell"><div class="hcl">Bought</div><div class="hcv">${fd(p.buyDate)}</div></div>
     </div>
     <div class="hc-foot">
       <div>
@@ -681,32 +583,39 @@ function mkCard(p) {
         ${p.notes?`<div class="hc-note">${p.notes}</div>`:''}
       </div>
       <div class="hc-btns">
-        ${!p.closed?`<button class="bsm b-sell" onclick="openSell('${p.id}')">Sell</button>`:''}
-        <button class="bsm b-del" onclick="delPos('${p.id}')">Del</button>
+        ${!p.closed?`<button class="bsm sell" onclick="openSell('${p.id}')">Sell</button>`:''}
+        <button class="bsm del" onclick="delPos('${p.id}')">Del</button>
       </div>
     </div>
   </div>`;
 }
 
-// ═══════════════════════════════════════════════
-//  POSITION ACTIONS
-// ═══════════════════════════════════════════════
+// ═══ ACTIONS ═══
 function setProf(id) { S.activeProfile=id; render(); }
 
-function openAdd(pid) {
-  document.getElementById('f_profile').innerHTML=S.profiles.map(p=>`<option value="${p.id}" ${p.id===pid?'selected':''}>${p.name}</option>`).join('');
+function openAddProf() {
+  const name = prompt('Profile name:');
+  if (!name) return;
+  S.profiles.push({id:'p'+Date.now(),name});
+  saveData(); render();
+}
+
+function openAddPos() {
+  if (S.activeProfile === 'overall') { alert('Select a profile first'); return; }
+  document.getElementById('f_prof').innerHTML=S.profiles.map(p=>`<option value="${p.id}" ${p.id===S.activeProfile?'selected':''}>${p.name}</option>`).join('');
   document.getElementById('f_dt').value=todayIST();
   clearInstr();
   ['f_lots','f_bp','f_mg','f_nt'].forEach(id=>document.getElementById(id).value='');
-  openSheet('addSheet');
+  openSheet('addPosSheet');
 }
 
-function savePos() {
-  if (!selInstr) { alert('Select an instrument from the dropdown first.'); return; }
+async function savePos() {
+  if (!selInstr) { alert('Select instrument first'); return; }
   const lots=parseInt(document.getElementById('f_lots').value)||1;
   const bp=parseFloat(document.getElementById('f_bp').value)||0;
   S.positions.push({
-    id:'p'+Date.now(), profileId:document.getElementById('f_profile').value,
+    id:'pos'+Date.now(),
+    profileId:document.getElementById('f_prof').value,
     symbol:selInstr.symbol, tradingSym:selInstr.tradingSym, instrKey:selInstr.instrKey,
     type:selInstr.type, exchange:selInstr.exchange, expiry:selInstr.expiry, strike:selInstr.strike,
     lots, lotSize:selInstr.lotSize, buyPrice:bp,
@@ -715,10 +624,11 @@ function savePos() {
     notes:document.getElementById('f_nt').value.trim(),
     ltp:bp, prevClose:bp, closed:false
   });
-  save(); render(); closeSheet('addSheet');
+  await saveData();
+  render();
+  closeSheet('addPosSheet');
 }
 
-let sellId=null;
 function openSell(id) {
   const p=S.positions.find(x=>x.id===id); if(!p) return;
   sellId=id;
@@ -728,108 +638,98 @@ function openSell(id) {
     <div class="sell-row"><span>Symbol</span><span>${p.symbol} ${p.expiry||''}</span></div>
     <div class="sell-row"><span>Type</span><span>${p.type}</span></div>
     <div class="sell-row"><span>Lots×Size</span><span>${p.lots}×${p.lotSize}</span></div>
-    <div class="sell-row"><span>Buy Price</span><span>₹${fi(p.buyPrice,2)}</span></div>
+    <div class="sell-row"><span>Buy</span><span>₹${fi(p.buyPrice,2)}</span></div>
     <div class="sell-row"><span>LTP</span><span>₹${fi(p.ltp||p.buyPrice,2)}</span></div>`;
   openSheet('sellSheet');
 }
 
-function confirmSell() {
+async function confirmSell() {
   const p=S.positions.find(x=>x.id===sellId); if(!p) return;
   p.sellPrice=parseFloat(document.getElementById('s_px').value)||0;
   p.sellDate=document.getElementById('s_dt').value;
   p.closed=true;
-  save(); render(); closeSheet('sellSheet');
+  await saveData();
+  render();
+  closeSheet('sellSheet');
 }
 
-function delPos(id) {
-  if (!confirm('Delete this position?')) return;
+async function delPos(id) {
+  if (!confirm('Delete?')) return;
   S.positions=S.positions.filter(p=>p.id!==id);
-  save(); render();
+  await saveData();
+  render();
 }
 
-function addProfile() {
-  const name=document.getElementById('newPN').value.trim(); if(!name) return;
+async function addProf() {
+  const name=document.getElementById('newProf').value.trim(); if(!name) return;
   S.profiles.push({id:'p'+Date.now(),name});
-  document.getElementById('newPN').value='';
-  save(); renderProfManage(); render();
+  document.getElementById('newProf').value='';
+  await saveData();
+  renderProfList();
+  render();
 }
 
-function quickAddProfile() {
-  const name=document.getElementById('qpName').value.trim(); if(!name) return;
-  S.profiles.push({id:'p'+Date.now(),name});
-  document.getElementById('qpName').value='';
-  save(); render(); closeSheet('qpSheet');
-}
-
-function deleteProfile(id) {
+async function delProf(id) {
   if (!confirm('Remove profile?')) return;
   S.profiles=S.profiles.filter(p=>p.id!==id);
   if (S.activeProfile===id) S.activeProfile='overall';
-  save(); renderProfManage(); render();
+  await saveData();
+  renderProfList();
+  render();
 }
 
-function renderProfManage() {
-  document.getElementById('profManage').innerHTML=S.profiles.map(p=>
-    `<div class="pm-row"><span>${p.name}</span><button class="bsm b-sell" onclick="deleteProfile('${p.id}')">Remove</button></div>`
+function renderProfList() {
+  document.getElementById('profList').innerHTML=S.profiles.map(p=>
+    `<div class="pm-row"><span>${p.name}</span><button class="bsm sell" onclick="delProf('${p.id}')">Remove</button></div>`
   ).join('');
 }
 
 function exportData() {
-  const b=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});
+  const b=new Blob([JSON.stringify({profiles:S.profiles,positions:S.positions},null,2)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(b);
   a.download=`fo_${todayIST()}.json`; a.click();
 }
-function importData(e) {
+
+function importClick() { document.getElementById('impFile').click(); }
+async function importData(e) {
   const f=e.target.files[0]; if(!f) return;
   const r=new FileReader();
-  r.onload=ev=>{
-    try { const d=JSON.parse(ev.target.result); if(d.profiles&&d.positions){S={...S,...d};save();render();closeSheet('settingsSheet');} else alert('Invalid file.'); }
-    catch{alert('Could not parse file.');}
+  r.onload=async ev=>{
+    try {
+      const d=JSON.parse(ev.target.result);
+      if(d.profiles&&d.positions){
+        S.profiles=d.profiles;
+        S.positions=d.positions;
+        await saveData();
+        render();
+        closeSheet('settingsSheet');
+      } else alert('Invalid file');
+    } catch{alert('Parse failed');}
   };
   r.readAsText(f);
 }
 
-// ═══════════════════════════════════════════════
-//  SHEET HELPERS
-// ═══════════════════════════════════════════════
+// ═══ SHEETS ═══
 function openSheet(id) {
   document.getElementById(id).classList.add('open');
-  document.body.style.overflow='hidden';
-  // If opening settings, populate profile manage list
-  if (id === 'settingsSheet') renderProfManage();
+  if (id==='settingsSheet') renderProfList();
 }
-function closeSheet(id) { document.getElementById(id).classList.remove('open'); document.body.style.overflow=''; }
+function closeSheet(id) { document.getElementById(id).classList.remove('open'); }
 document.querySelectorAll('.overlay').forEach(el=>el.addEventListener('click',e=>{if(e.target===el)closeSheet(el.id);}));
 document.addEventListener('click',e=>{if(!e.target.closest('.srch-wrap'))document.getElementById('srchRes').style.display='none';});
 
-// ═══════════════════════════════════════════════
-//  INIT
-// ═══════════════════════════════════════════════
+// ═══ INIT ═══
 async function init() {
-  // Check version first - will reload if new version detected
-  const versionOk = await checkVersion();
-  if (!versionOk) return;
-
-  // handle owner OAuth callback (has ?code= in URL)
   const params = new URLSearchParams(window.location.search);
-  if (params.get('code')) {
-    await handleOAuthCallback();
-    // after token exchange, show PIN gate as normal
-  }
+  if (params.get('code')) await handleOAuth();
 
-  // check if session PIN is cached (same browser session)
-  const cached = localStorage.getItem('fo_pin_session');
+  const cached = sessionStorage.getItem('pin');
   if (cached) {
-    // quickly validate cached PIN against worker
     try {
-      const r = await fetch(`${WORKER}/ping`, { headers:{'X-PIN':cached} });
+      const r = await fetch(`${WORKER}/ping`, {headers:{'X-PIN':cached}});
       if (r.ok) { PIN=cached; enterApp(); return; }
-    } catch(e) {
-      // offline - trust local cache
-      PIN=cached; enterApp(); return;
-    }
+    } catch(e) { PIN=cached; enterApp(); return; }
   }
-  // show PIN gate
   document.getElementById('gate').style.display='flex';
 }
 
