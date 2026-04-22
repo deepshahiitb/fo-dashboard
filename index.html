@@ -308,10 +308,27 @@ select.finp option{background:var(--bg3)}
 // ═══════════════════════════════════════════════
 //  CONFIG  — update WORKER after Cloudflare deploy
 // ═══════════════════════════════════════════════
+const APP_VERSION = "1.1"; // Increment this whenever you push changes to force reload
 const API_KEY    = "5764ef69-8599-489f-9b5a-34b2af66ba3e";
 const REDIRECT   = "https://deepshahiitb.github.io/fo-dashboard/";
-const WORKER     = "https://fo-dashboard.deepshah-iitb.workers.dev"; // ← fill after deploy
+const WORKER     = "https://fo-dashboard.deepshah-iitb.workers.dev";
 const AUTH_URL   = `https://api.upstox.com/v2/login/authorization/dialog?response_type=code&client_id=${API_KEY}&redirect_uri=${encodeURIComponent(REDIRECT)}`;
+
+// ═══════════════════════════════════════════════
+//  VERSION CHECK — auto-reload if version changes
+// ═══════════════════════════════════════════════
+function checkVersion() {
+  const stored = localStorage.getItem('fo_app_version');
+  if (stored && stored !== APP_VERSION) {
+    console.log('New version detected, clearing cache and reloading...');
+    localStorage.removeItem('fo_pin_session'); // clear PIN cache
+    localStorage.setItem('fo_app_version', APP_VERSION);
+    window.location.reload(true);
+    return false;
+  }
+  localStorage.setItem('fo_app_version', APP_VERSION);
+  return true;
+}
 
 // ═══════════════════════════════════════════════
 //  STATE
@@ -771,6 +788,9 @@ document.addEventListener('click',e=>{if(!e.target.closest('.srch-wrap'))documen
 //  INIT
 // ═══════════════════════════════════════════════
 async function init() {
+  // Check version first - will reload if mismatch
+  if (!checkVersion()) return;
+
   // handle owner OAuth callback (has ?code= in URL)
   const params = new URLSearchParams(window.location.search);
   if (params.get('code')) {
