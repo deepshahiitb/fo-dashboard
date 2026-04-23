@@ -399,9 +399,25 @@ async function loadData() {
     const r = await fetch(`${WORKER}/data`, {headers:{'X-PIN':PIN}});
     if (!r.ok) return;
     const d = await r.json();
+    // Merge carefully: update profiles and position metadata from cloud,
+    // but preserve in-memory LTP/prevClose (which are fresher than cloud)
+    const ltpMap = {};
+    for (const p of S.positions) {
+      if (p.ltp !== p.buyPrice || p.prevClose) {
+        ltpMap[p.id] = { ltp: p.ltp, prevClose: p.prevClose, ltpChgPct: p.ltpChgPct };
+      }
+    }
     S.profiles = d.profiles || [];
     S.positions = d.positions || [];
-    if (!S.activeProfile || S.activeProfile === 'overall') S.activeProfile = 'overall';
+    // Restore fresher LTP values
+    for (const p of S.positions) {
+      if (ltpMap[p.id]) {
+        p.ltp = ltpMap[p.id].ltp;
+        p.prevClose = ltpMap[p.id].prevClose;
+        p.ltpChgPct = ltpMap[p.id].ltpChgPct;
+      }
+    }
+    if (!S.activeProfile) S.activeProfile = 'overall';
     render();
   } catch(e) { console.error('Load failed', e); }
 }
@@ -453,11 +469,21 @@ function enterApp() {
   document.getElementById('app').style.display='flex';
   loadData();
   checkToken();
-  // Always fetch prices on app open (gets close price after market hours, live during market hours)
+  // Always fetch prices on app open (gets close price after market hours too)
   refreshPrices();
-  setInterval(()=>{ if(isMarketOpen()) refreshPrices(); }, 60*1000); // 60s during market hours
-  setInterval(()=>{ loadData(); }, 60*1000);
-  setInterval(()=>{ if(isMarketOpen()) saveData(); }, 60*1000);
+  // During market hours: refresh every 60s
+  setInterval(()=>{ if(isMarketOpen()) refreshPrices(); }, 60*1000);
+  // Sync positions/profiles from cloud every 60s (preserves in-memory LTP)
+  setInterval(loadData, 60*1000);
+  // Save prices to cloud every 60s during market hours so close price persists for all devices
+  setInterval(async ()=>{ if(isMarketOpen()) await saveData(); }, 60*1000);
+  // Save final close price once at market close (15:31 IST)
+  setInterval(()=>{
+    const ist = new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Kolkata'}));
+    if (ist.getHours()===15 && ist.getMinutes()===31) {
+      refreshPrices().then(()=>saveData());
+    }
+  }, 60*1000);
   setInterval(renderMarket, 30000);
 }
 
@@ -1014,9 +1040,25 @@ async function delProf(id) {
   render();
 }
 
+async function renameProf(id) {
+  const p = S.profiles.find(x=>x.id===id); if(!p) return;
+  const newName = prompt('New name for profile:', p.name);
+  if (!newName || !newName.trim() || newName.trim()===p.name) return;
+  p.name = newName.trim();
+  await saveData();
+  renderProfList();
+  render();
+}
+
 function renderProfList() {
   document.getElementById('profList').innerHTML=S.profiles.map(p=>
-    `<div class="pm-row"><span>${p.name}</span><button class="bsm sell" onclick="delProf('${p.id}')">Remove</button></div>`
+    `<div class="pm-row">
+      <span>${p.name}</span>
+      <div style="display:flex;gap:5px">
+        <button class="bsm" onclick="renameProf('${p.id}')" style="color:var(--ac2);border-color:rgba(162,155,254,.3)">Rename</button>
+        <button class="bsm sell" onclick="delProf('${p.id}')">Remove</button>
+      </div>
+    </div>`
   ).join('');
 }
 
