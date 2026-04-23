@@ -803,12 +803,9 @@ function clearInstr() {
 // ═══ CALCS ═══
 const ltp    = p => p.closed?(p.sellPrice||0):(p.ltp||p.buyPrice||0);
 const val    = p => ltp(p)*p.lots*p.lotSize;
-// Margin: live from Upstox /charges/margin API, fetched on every price refresh
-// Shows — until first refresh. Never estimated from a formula.
-const margin = p => {
-  if (p.closed) return 0;
-  return p.liveMargin || 0; // 0 = not yet fetched, shown as — in UI
-};
+// Margin: live from Upstox /charges/margin API only.
+// Shows — until first price refresh after app open.
+const margin = p => (p.closed || !p.liveMargin) ? 0 : p.liveMargin;
 const totPnL = p => (ltp(p)-p.buyPrice)*p.lots*p.lotSize;
 // Day P&L: uses net_change-based prevClose
 const dayPnL = p => {
@@ -834,7 +831,12 @@ function smry(pos) {
 const fi = (n,d=0) => isNaN(n)?'—':new Intl.NumberFormat('en-IN',{minimumFractionDigits:d,maximumFractionDigits:d}).format(n);
 const fp = n => (n>=0?'+':'')+fi(n,0);
 const pc = n => n>0?'pos':n<0?'neg':'neu';
-const fd = d => d?new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'2-digit'}):'—';
+const fd = d => {
+  if (!d) return '—';
+  // Parse YYYY-MM-DD directly to avoid UTC→local timezone shift
+  const [y,m,day] = d.split('-').map(Number);
+  return new Date(y, m-1, day).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'2-digit'});
+};
 
 // ═══ RENDER ═══
 function render() {
