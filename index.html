@@ -164,16 +164,16 @@ select.finp option{background:var(--bg3)}
 .pnl-stat-v{font-size:16px;font-weight:700}
 
 /* Sortable table */
-.tbl-wrap{overflow-x:auto;padding:0 14px 14px;-webkit-overflow-scrolling:touch}
+.tbl-wrap{overflow-x:auto;padding:0 14px 14px;-webkit-overflow-scrolling:touch;position:relative}
 .tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:12px;min-width:700px}
-.tbl thead th{padding:8px 10px;text-align:right;font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;cursor:pointer;white-space:nowrap;user-select:none;border-bottom:2px solid var(--b2);background:var(--bg3);position:sticky;top:0;z-index:2}
-.tbl thead th:first-child{text-align:left;position:sticky;left:0;top:0;z-index:3;background:var(--bg3);box-shadow:2px 0 6px rgba(0,0,0,.5)}
+.tbl thead th{padding:8px 10px;text-align:right;font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;cursor:pointer;white-space:nowrap;user-select:none;border-bottom:2px solid var(--b2);background:#18181f;position:sticky;top:0;z-index:2}
+.tbl thead th:first-child{text-align:left;position:sticky;left:0;top:0;z-index:10;background:#18181f;box-shadow:3px 0 8px #09090e}
 .tbl th.sorted{color:var(--ac2)}
 .tbl th .arr{margin-left:2px;font-size:8px}
-.tbl tbody td{padding:8px 10px;text-align:right;white-space:nowrap;background:var(--bg2);border-bottom:1px solid var(--b)}
-.tbl tbody td:first-child{text-align:left;position:sticky;left:0;z-index:1;background:var(--bg2);box-shadow:2px 0 6px rgba(0,0,0,.4)}
-.tbl tbody tr:hover td{background:var(--bg3)}
-.tbl tbody tr:hover td:first-child{background:var(--bg3)}
+.tbl tbody td{padding:8px 10px;text-align:right;white-space:nowrap;background:#111118;border-bottom:1px solid var(--b)}
+.tbl tbody td:first-child{text-align:left;position:sticky;left:0;z-index:5;background:#111118;box-shadow:3px 0 8px #09090e}
+.tbl tbody tr:hover td{background:#18181f}
+.tbl tbody tr:hover td:first-child{background:#18181f;box-shadow:3px 0 8px #09090e}
 .tbl-sym{font-weight:700;font-size:12px}
 .tbl-meta{font-size:9px;color:var(--t3);margin-top:1px}
 .tbl-sec{padding:8px 14px 4px;font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.7px;display:flex;justify-content:space-between;align-items:center;margin-top:4px}
