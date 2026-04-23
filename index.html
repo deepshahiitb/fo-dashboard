@@ -548,10 +548,13 @@ async function refreshPrices() {
         method: 'POST',
         headers: {'Content-Type':'application/json','X-PIN':PIN},
         body: JSON.stringify({
-          instruments: openPos.map(p => ({
-            instrument_key: p.instrKey,
-            quantity: p.lots * p.lotSize
-          }))
+          instruments: openPos
+            .filter(p => p.foInstrKey || p.instrKey) // need some key
+            .map(p => ({
+              instrument_key: p.foInstrKey || p.instrKey, // futures key preferred
+              _posId: p.id,   // track which position this maps to
+              quantity: p.lots * p.lotSize
+            }))
         })
       })
     ]);
@@ -590,10 +593,12 @@ async function refreshPrices() {
       const mdata = await marginRes.json();
       if (mdata.margins) {
         for (const p of S.positions) {
-          if (p.closed || !p.instrKey) continue;
-          const liveMargin = mdata.margins[p.instrKey];
+          if (p.closed) continue;
+          // Look up by futures key first, then equity key
+          const key = p.foInstrKey || p.instrKey;
+          const liveMargin = mdata.margins[key];
           if (liveMargin && liveMargin > 0) {
-            p.liveMargin = liveMargin; // store live margin separately
+            p.liveMargin = liveMargin;
           }
         }
       }
@@ -628,11 +633,15 @@ async function doSearch(q) {
     const eqData = eqRes.ok ? await eqRes.json() : {data:[]};
     const foData = foRes.ok ? await foRes.json() : {data:[]};
 
-    // Build lot size map from FUT instruments: underlying_symbol → lot_size
+    // Build lot size map AND futures instrument_key map from FUT instruments
     const lotMap = {};
+    const foKeyMap = {}; // underlying_symbol → futures instrument_key
     for (const i of (foData.data||[])) {
       if (i.instrument_type === 'FUT' && i.underlying_symbol && i.lot_size) {
-        if (!lotMap[i.underlying_symbol]) lotMap[i.underlying_symbol] = i.lot_size;
+        if (!lotMap[i.underlying_symbol]) {
+          lotMap[i.underlying_symbol] = i.lot_size;
+          foKeyMap[i.underlying_symbol] = i.instrument_key; // nearest expiry futures key
+        }
       }
     }
 
@@ -640,10 +649,10 @@ async function doSearch(q) {
     if (!items.length) { el.innerHTML='<div class="sri-msg">No results</div>'; return; }
 
     el.innerHTML = items.map(i=>{
-      const lotSize = lotMap[i.trading_symbol] || lotMap[i.short_name] || null;
+      const lotSize  = lotMap[i.trading_symbol]  || lotMap[i.short_name]  || null;
+      const foKey    = foKeyMap[i.trading_symbol] || foKeyMap[i.short_name] || null;
       const lotLabel = lotSize ? ` · Lot: ${lotSize}` : '';
-      // Embed lotSize and foData into the item for pickInstr
-      const enriched = {...i, _lotSize: lotSize};
+      const enriched = {...i, _lotSize: lotSize, _foInstrKey: foKey};
       return `<div class="sri" onclick='pickInstr(${JSON.stringify(enriched)})'>
         <div class="sri-name">${i.trading_symbol||i.name}</div>
         <div class="sri-meta">${i.name||''} · ${i.exchange||'NSE'}${lotLabel}</div>
@@ -664,57 +673,27 @@ function iType(i) {
 function pickInstr(i) {
   const lotSize = i._lotSize || 1;
   selInstr = {
-    symbol: i.trading_symbol || i.name,
+    symbol:     i.trading_symbol || i.name,
     tradingSym: i.trading_symbol,
-    instrKey: i.instrument_key,
+    instrKey:   i.instrument_key,    // equity key — for LTP
+    foInstrKey: i._foInstrKey || null, // futures key — for SPAN margin
     lotSize,
-    marginPct: 20, // will be updated by fetchLotAndMargin
-    type: 'EQ',
+    type:     'EQ',
     exchange: i.exchange || 'NSE',
-    name: i.name || i.trading_symbol
+    name:     i.name || i.trading_symbol
   };
   document.getElementById('f_srch').value = i.trading_symbol || i.name;
   document.getElementById('srchRes').style.display = 'none';
   document.getElementById('selInstr').style.display = 'block';
   document.getElementById('si_name').textContent = i.trading_symbol || i.name;
   document.getElementById('f_lsz').value = lotSize;
-
-  if (lotSize > 1) {
-    document.getElementById('si_meta').textContent = `${i.name||''} · ${i.exchange||'NSE'} · Lot: ${lotSize} · Fetching margin rate…`;
-  } else {
-    document.getElementById('si_meta').textContent = `${i.name||''} · ${i.exchange||'NSE'} · Not in F&O — lot size 1`;
-  }
+  const foNote = i._foInstrKey ? ` · Lot: ${lotSize} · Margin fetches on refresh` : ' · Not in F&O';
+  document.getElementById('si_meta').textContent = `${i.name||''} · ${i.exchange||'NSE'}${foNote}`;
   updateShares();
-
-  // Fetch NRML margin % from worker (still uses hardcoded FO_MARGIN_PCT as fallback)
-  fetchLotAndMargin(selInstr.symbol);
 
   // Auto-fetch historical close if date already set
   const existingDate = document.getElementById('f_dt').value;
   if (existingDate) fetchHistoricalClose(selInstr.instrKey, existingDate);
-}
-
-async function fetchLotAndMargin(symbol) {
-  try {
-    const r = await fetch(`${WORKER}/margin?symbol=${encodeURIComponent(symbol)}`, {headers:{'X-PIN':PIN}});
-    const d = await r.json();
-    if (d.found && d.margin) {
-      // Only update marginPct — lotSize already set from instrument search
-      selInstr.marginPct = d.margin.marginPct || 20;
-      // If lot size wasn't found from search (not in F&O), use table as fallback
-      if (selInstr.lotSize <= 1 && d.margin.lotSize > 1) {
-        selInstr.lotSize = d.margin.lotSize;
-        document.getElementById('f_lsz').value = selInstr.lotSize;
-        updateShares();
-      }
-      document.getElementById('si_meta').textContent = `${selInstr.name||symbol} · ${selInstr.exchange} · Lot: ${selInstr.lotSize} · NRML: ${selInstr.marginPct}% of value`;
-    } else {
-      selInstr.marginPct = 20;
-      document.getElementById('si_meta').textContent = `${selInstr.name||symbol} · ${selInstr.exchange} · Lot: ${selInstr.lotSize} · Not in F&O margin list`;
-    }
-  } catch(e) {
-    // silently fail — lot size and margin already set with defaults
-  }
 }
 
 function updateShares() {
@@ -765,24 +744,33 @@ async function backfillMissingPrices() {
 async function fetchHistoricalClose(instrKey, date) {
   if (!instrKey || !date || !PIN) return;
   const bpInp = document.getElementById('f_bp');
+  if (!bpInp) return;
   bpInp.placeholder = 'Fetching close price…';
+  bpInp.style.borderColor = 'var(--ac2)';
   try {
     const r = await fetch(`${WORKER}/history?key=${encodeURIComponent(instrKey)}&date=${date}`, {
       headers: {'X-PIN': PIN}
     });
+    if (!r.ok) {
+      bpInp.placeholder = `Error ${r.status} — enter manually`;
+      bpInp.style.borderColor = '';
+      return;
+    }
     const d = await r.json();
     if (d.found && d.close) {
       bpInp.value = d.close;
       const label = d.actualDate && d.actualDate !== date
-        ? `Close ${d.actualDate} (prev trading day): ₹${d.close}`
-        : `Close on ${date}: ₹${d.close}`;
-      bpInp.placeholder = label;
+        ? `Used ${d.actualDate} (prev trading day)`
+        : `Close on ${date}`;
+      bpInp.placeholder = `${label}: ₹${d.close}`;
     } else {
-      bpInp.placeholder = 'No data for this date — enter manually';
+      bpInp.placeholder = 'No trading data for this date — enter manually';
     }
   } catch(e) {
-    bpInp.placeholder = 'Enter buy price manually';
+    bpInp.placeholder = `Fetch error — enter manually`;
+    console.error('fetchHistoricalClose failed:', e);
   }
+  bpInp.style.borderColor = '';
 }
 
 function onBuyDateChange() {
@@ -1056,20 +1044,18 @@ async function savePos() {
   S.positions.push({
     id: 'pos'+Date.now(),
     profileId: document.getElementById('f_prof').value,
-    symbol: selInstr.symbol,
+    symbol:    selInstr.symbol,
     tradingSym: selInstr.tradingSym,
-    instrKey: selInstr.instrKey,
-    type: 'EQ',
+    instrKey:   selInstr.instrKey,    // equity key for LTP
+    foInstrKey: selInstr.foInstrKey || null, // futures key for margin
+    type:     'EQ',
     exchange: selInstr.exchange,
-    expiry: '',
-    strike: null,
     lots,
     lotSize,
     buyPrice: bp,
-    buyDate: document.getElementById('f_dt').value,
-    notes: document.getElementById('f_nt').value.trim(),
-    closed: false
-    // liveMargin populated by refreshPrices() after save
+    buyDate:  document.getElementById('f_dt').value,
+    notes:    document.getElementById('f_nt').value.trim(),
+    closed:   false
   });
   await saveData();
   render();
