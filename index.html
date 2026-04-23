@@ -259,8 +259,8 @@ select.finp option{background:var(--bg3)}
       </div>
       <div class="fgrp"><span class="flbl">Total Shares (auto)</span><input class="finp" id="f_shares" readonly style="opacity:.7"></div>
       <div class="frow">
-        <div class="fgrp"><span class="flbl">Buy Price ₹</span><input class="finp" id="f_bp" type="number" step="0.05"></div>
-        <div class="fgrp"><span class="flbl">Buy Date</span><input class="finp" id="f_dt" type="date"></div>
+        <div class="fgrp"><span class="flbl">Buy Price ₹</span><input class="finp" id="f_bp" type="number" step="0.05" placeholder="Auto-fills from date"></div>
+        <div class="fgrp"><span class="flbl">Buy Date</span><input class="finp" id="f_dt" type="date" onchange="onBuyDateChange()"></div>
       </div>
       <div class="fgrp"><span class="flbl">Notes (optional)</span><input class="finp" id="f_nt"></div>
       <button class="bp" onclick="savePos()">Add Position</button>
@@ -648,6 +648,10 @@ function pickInstr(i) {
 
   // Auto-fetch lot size + margin from Zerodha page
   fetchLotAndMargin(selInstr.symbol);
+
+  // Auto-fetch historical close if date already set
+  const existingDate = document.getElementById('f_dt').value;
+  if (existingDate) fetchHistoricalClose(selInstr.instrKey, existingDate);
 }
 
 async function fetchLotAndMargin(symbol) {
@@ -682,7 +686,32 @@ async function fetchMargin_OLD_UNUSED(symbol, expiry) {
   // Replaced by fetchLotAndMargin
 }
 
-function clearInstr() {
+async function fetchHistoricalClose(instrKey, date) {
+  if (!instrKey || !date || !PIN) return;
+  const bpInp = document.getElementById('f_bp');
+  bpInp.placeholder = 'Fetching close price…';
+  try {
+    const r = await fetch(`${WORKER}/history?key=${encodeURIComponent(instrKey)}&date=${date}`, {
+      headers: {'X-PIN': PIN}
+    });
+    const d = await r.json();
+    if (d.found && d.close) {
+      bpInp.value = d.close;
+      bpInp.placeholder = `Close on ${date}: ₹${d.close}`;
+    } else {
+      bpInp.placeholder = 'No data for this date — enter manually';
+    }
+  } catch(e) {
+    bpInp.placeholder = 'Enter buy price manually';
+  }
+}
+
+function onBuyDateChange() {
+  const date = document.getElementById('f_dt').value;
+  if (selInstr && date) {
+    fetchHistoricalClose(selInstr.instrKey, date);
+  }
+}
   selInstr=null;
   document.getElementById('f_srch').value='';
   document.getElementById('f_lsz').value='';
