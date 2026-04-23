@@ -165,16 +165,17 @@ select.finp option{background:var(--bg3)}
 
 /* Sortable table */
 .tbl-wrap{overflow-x:auto;padding:0 14px 14px;-webkit-overflow-scrolling:touch}
-.tbl{width:100%;border-collapse:collapse;font-size:12px;min-width:580px}
+.tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:12px;min-width:780px}
 .tbl thead tr{background:var(--bg3)}
-.tbl th{padding:8px 10px;text-align:right;font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;cursor:pointer;white-space:nowrap;user-select:none;border-bottom:1px solid var(--b2)}
-.tbl th:first-child{text-align:left}
+.tbl th{padding:8px 10px;text-align:right;font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;cursor:pointer;white-space:nowrap;user-select:none;border-bottom:2px solid var(--b2);background:var(--bg3);position:sticky;top:0;z-index:2}
+.tbl th:first-child{text-align:left;position:sticky;left:0;top:0;z-index:3;background:var(--bg3)}
 .tbl th.sorted{color:var(--ac2)}
 .tbl th .arr{margin-left:2px;font-size:8px}
 .tbl tbody tr{border-bottom:1px solid var(--b)}
-.tbl tbody tr:hover{background:var(--bg3)}
-.tbl td{padding:8px 10px;text-align:right;white-space:nowrap}
-.tbl td:first-child{text-align:left}
+.tbl tbody tr:hover td{background:var(--bg3)}
+.tbl tbody tr:hover td:first-child{background:var(--bg3)}
+.tbl td{padding:8px 10px;text-align:right;white-space:nowrap;background:var(--bg2);border-bottom:1px solid var(--b)}
+.tbl td:first-child{text-align:left;position:sticky;left:0;z-index:1;background:var(--bg2)}
 .tbl-sym{font-weight:700;font-size:12px}
 .tbl-meta{font-size:9px;color:var(--t3);margin-top:1px}
 .tbl-sec{padding:8px 14px 4px;font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.7px;display:flex;justify-content:space-between;align-items:center;margin-top:4px}
@@ -456,8 +457,9 @@ function enterApp() {
   checkToken();
   // Always fetch prices on app open (gets close price after market hours, live during market hours)
   refreshPrices();
-  setInterval(()=>{ if(isMarketOpen()) refreshPrices(); }, 3*60*1000);
-  setInterval(()=>{ loadData(); }, 30*1000);
+  setInterval(()=>{ if(isMarketOpen()) refreshPrices(); }, 15*1000); // 15s during market hours
+  setInterval(()=>{ loadData(); }, 60*1000); // sync data every 60s
+  setInterval(()=>{ if(isMarketOpen()) saveData(); }, 60*1000); // save prices to cloud every 60s
   setInterval(renderMarket, 30000);
 }
 
@@ -560,8 +562,7 @@ async function refreshPrices() {
         }
       }
       S.lastRefresh = new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'});
-      await saveData();
-      render();
+      render(); // just re-render, don't save every 15s
     }
   } catch(e){ console.error('Refresh failed:', e); }
   if(ico) ico.style.animation='';
@@ -841,13 +842,13 @@ function mkTable(title, positions, showAddBtn) {
 
   html += `<div class="tbl-wrap"><table class="tbl"><thead><tr>
     ${thSort('Symbol','symbol')}
-    ${thSort('Lots','lots')}
     ${thSort('Buy','buy')}
     ${thSort('LTP','ltp')}
-    ${thSort('Value','val')}
-    ${thSort('Margin','margin')}
     ${thSort('Day P&L','dayPnL')}
     ${thSort('Total P&L','totPnL')}
+    ${thSort('Lots','lots')}
+    ${thSort('Value','val')}
+    ${thSort('Margin','margin')}
     <th>Bought</th>
     <th>Actions</th>
   </tr></thead><tbody>`;
@@ -858,20 +859,20 @@ function mkTable(title, positions, showAddBtn) {
     const tp = totPnL(p);
     const v = val(p);
     const pn = S.activeProfile==='overall' ? (S.profiles.find(x=>x.id===p.profileId)?.name||'') : '';
-    const chgPct = p.ltpChgPct ? ` (${p.ltpChgPct>=0?'+':''}${p.ltpChgPct.toFixed(1)}%)` : '';
+    const chgPct = p.ltpChgPct ? `<br><span style="font-size:9px">${p.ltpChgPct>=0?'+':''}${p.ltpChgPct.toFixed(1)}%</span>` : '';
     html += `<tr>
       <td>
         <div class="tbl-sym">${p.symbol}</div>
         <div class="tbl-meta">${pn||p.exchange||'NSE'}</div>
       </td>
-      <td>${p.lots}×${fi(p.lotSize)}<br><span style="font-size:9px;color:var(--t3)">${fi(p.lots*p.lotSize)} sh</span></td>
       <td>₹${fi(p.buyPrice,2)}</td>
-      <td class="${pc(dp)}">₹${fi(l,2)}<br><span style="font-size:9px">${chgPct||'—'}</span></td>
-      <td>₹${fi(v)}</td>
-      <td>${p.margin?'₹'+fi(p.margin):'—'}</td>
+      <td class="${pc(dp)}">₹${fi(l,2)}${chgPct}</td>
       <td class="${pc(dp)}">${dp!==0?'₹'+fp(dp):'—'}</td>
       <td class="${pc(tp)}">₹${fp(tp)}</td>
-      <td style="font-size:11px">${fd(p.buyDate)}</td>
+      <td>${p.lots}×${fi(p.lotSize)}<br><span style="font-size:9px;color:var(--t3)">${fi(p.lots*p.lotSize)} sh</span></td>
+      <td>₹${fi(v)}</td>
+      <td>${p.margin?'₹'+fi(p.margin):'—'}</td>
+      <td style="font-size:11px;color:var(--t2)">${fd(p.buyDate)}</td>
       <td><div style="display:flex;gap:4px;justify-content:flex-end">
         <button class="bsm" onclick="openEdit('${p.id}')" style="color:var(--ac2);border-color:rgba(162,155,254,.3)">Edit</button>
         <button class="bsm sell" onclick="openSell('${p.id}')">Sell</button>
