@@ -1054,6 +1054,7 @@ async function savePos() {
   await saveData();
   render();
   closeSheet('addPosSheet');
+  refreshPrices(); // fetch LTP + margin for new position immediately
 }
 
 function openSell(id) {
