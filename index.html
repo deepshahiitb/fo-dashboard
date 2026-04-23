@@ -399,21 +399,16 @@ async function loadData() {
     const r = await fetch(`${WORKER}/data`, {headers:{'X-PIN':PIN}});
     if (!r.ok) return;
     const d = await r.json();
+    S.profiles = d.profiles || [];
+    // Preserve in-memory ltp/prevClose when merging (fresher than cloud)
     const ltpMap = {};
     for (const p of S.positions) {
-      if (p.ltp !== p.buyPrice || p.prevClose) {
-        ltpMap[p.id] = { ltp: p.ltp, prevClose: p.prevClose, ltpChgPct: p.ltpChgPct };
-      }
+      if (p.ltp || p.prevClose) ltpMap[p.id] = {ltp:p.ltp, prevClose:p.prevClose, ltpChgPct:p.ltpChgPct};
     }
-    S.profiles = d.profiles || [];
-    S.positions = d.positions || [];
-    for (const p of S.positions) {
-      if (ltpMap[p.id]) {
-        p.ltp = ltpMap[p.id].ltp;
-        p.prevClose = ltpMap[p.id].prevClose;
-        p.ltpChgPct = ltpMap[p.id].ltpChgPct;
-      }
-    }
+    S.positions = (d.positions || []).map(p => {
+      const saved = ltpMap[p.id];
+      return saved ? {...p, ...saved} : p;
+    });
     if (!S.activeProfile) S.activeProfile = 'overall';
     render();
   } catch(e) { console.error('Load failed', e); }
@@ -423,10 +418,19 @@ async function saveData() {
   if (!PIN) return;
   showLoading();
   try {
+    // Strip live price data before saving — prices are always fetched fresh from Upstox
+    // This prevents stale ltp=buyPrice from propagating to other devices
+    const clean = {
+      profiles: S.profiles,
+      positions: S.positions.map(p => {
+        const { ltp, prevClose, ltpChgPct, ltpChg, ...rest } = p;
+        return rest;
+      })
+    };
     await fetch(`${WORKER}/data`, {
       method:'PUT',
       headers:{'Content-Type':'application/json','X-PIN':PIN},
-      body:JSON.stringify({profiles:S.profiles, positions:S.positions})
+      body:JSON.stringify(clean)
     });
   } catch(e) { console.error('Save failed', e); }
   hideLoading();
@@ -464,24 +468,16 @@ async function submitPin() {
 function enterApp() {
   document.getElementById('gate').style.display='none';
   document.getElementById('app').style.display='flex';
-  loadData().then(() => backfillMissingPrices());
+  loadData().then(() => {
+    refreshPrices(); // always fetch prices on load (live during market, close after hours)
+    backfillMissingPrices();
+  });
   checkToken();
-  // Always fetch prices on app open (gets close price after market hours too)
-  refreshPrices();
-  // During market hours: refresh every 60s
+  // During market hours: refresh prices every 60s
   setInterval(()=>{ if(isMarketOpen()) refreshPrices(); }, 60*1000);
-  // Sync positions/profiles from cloud every 60s (preserves in-memory LTP)
-  setInterval(loadData, 60*1000);
-  // Save prices to cloud every 60s during market hours so close price persists for all devices
-  setInterval(async ()=>{ if(isMarketOpen()) await saveData(); }, 60*1000);
-  // Save final close price once at market close (15:31 IST)
-  setInterval(()=>{
-    const ist = new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Kolkata'}));
-    if (ist.getHours()===15 && ist.getMinutes()===31) {
-      refreshPrices().then(()=>saveData());
-    }
-  }, 60*1000);
-  setInterval(renderMarket, 30000);
+  // Sync position/profile data from cloud every 2 min
+  setInterval(loadData, 2*60*1000);
+  setInterval(renderMarket, 30*1000);
 }
 
 function lockApp() {
@@ -729,7 +725,10 @@ async function fetchHistoricalClose(instrKey, date) {
     const d = await r.json();
     if (d.found && d.close) {
       bpInp.value = d.close;
-      bpInp.placeholder = `Close on ${date}: ₹${d.close}`;
+      const label = d.actualDate && d.actualDate !== date
+        ? `Close ${d.actualDate} (prev trading day): ₹${d.close}`
+        : `Close on ${date}: ₹${d.close}`;
+      bpInp.placeholder = label;
     } else {
       bpInp.placeholder = 'No data for this date — enter manually';
     }
