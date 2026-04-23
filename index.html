@@ -399,8 +399,6 @@ async function loadData() {
     const r = await fetch(`${WORKER}/data`, {headers:{'X-PIN':PIN}});
     if (!r.ok) return;
     const d = await r.json();
-    // Merge carefully: update profiles and position metadata from cloud,
-    // but preserve in-memory LTP/prevClose (which are fresher than cloud)
     const ltpMap = {};
     for (const p of S.positions) {
       if (p.ltp !== p.buyPrice || p.prevClose) {
@@ -409,7 +407,6 @@ async function loadData() {
     }
     S.profiles = d.profiles || [];
     S.positions = d.positions || [];
-    // Restore fresher LTP values
     for (const p of S.positions) {
       if (ltpMap[p.id]) {
         p.ltp = ltpMap[p.id].ltp;
@@ -467,7 +464,7 @@ async function submitPin() {
 function enterApp() {
   document.getElementById('gate').style.display='none';
   document.getElementById('app').style.display='flex';
-  loadData();
+  loadData().then(() => backfillMissingPrices());
   checkToken();
   // Always fetch prices on app open (gets close price after market hours too)
   refreshPrices();
@@ -686,6 +683,41 @@ async function fetchMargin_OLD_UNUSED(symbol, expiry) {
   // Replaced by fetchLotAndMargin
 }
 
+async function backfillMissingPrices() {
+  // Find open positions that have a buyDate but buyPrice is 0 or missing
+  const needsFill = S.positions.filter(p =>
+    !p.closed && p.instrKey && p.buyDate && (!p.buyPrice || p.buyPrice === 0)
+  );
+  if (!needsFill.length) return;
+
+  console.log(`Backfilling buy prices for ${needsFill.length} positions...`);
+  let anyUpdated = false;
+
+  for (const p of needsFill) {
+    try {
+      const r = await fetch(
+        `${WORKER}/history?key=${encodeURIComponent(p.instrKey)}&date=${p.buyDate}`,
+        { headers: {'X-PIN': PIN} }
+      );
+      const d = await r.json();
+      if (d.found && d.close) {
+        p.buyPrice = d.close;
+        p.ltp = p.ltp && p.ltp !== 0 ? p.ltp : d.close;
+        p.prevClose = p.prevClose && p.prevClose !== 0 ? p.prevClose : d.close;
+        console.log(`Backfilled ${p.symbol}: ₹${d.close}`);
+        anyUpdated = true;
+      }
+    } catch(e) {
+      console.warn(`Could not backfill ${p.symbol}:`, e.message);
+    }
+  }
+
+  if (anyUpdated) {
+    await saveData();
+    render();
+  }
+}
+
 async function fetchHistoricalClose(instrKey, date) {
   if (!instrKey || !date || !PIN) return;
   const bpInp = document.getElementById('f_bp');
@@ -712,6 +744,8 @@ function onBuyDateChange() {
     fetchHistoricalClose(selInstr.instrKey, date);
   }
 }
+
+function clearInstr() {
   selInstr=null;
   document.getElementById('f_srch').value='';
   document.getElementById('f_lsz').value='';
