@@ -538,49 +538,69 @@ async function refreshPrices() {
 
   const openPos = S.positions.filter(p=>!p.closed&&p.instrKey);
   if (!openPos.length) { if(ico) ico.style.animation=''; return; }
-  // Send keys pipe-separated (NOT URL-encoded) so worker passes them straight to Upstox
   const keys = [...new Set(openPos.map(p=>p.instrKey))].join(',');
 
   try {
-    const r = await fetch(`${WORKER}/quote?keys=${encodeURIComponent(keys)}`, {headers:{'X-PIN':PIN}});
-    if (r.status===401) { checkToken(); if(ico) ico.style.animation=''; return; }
-    const data = await r.json();
+    // Fetch prices and margins in parallel
+    const [priceRes, marginRes] = await Promise.all([
+      fetch(`${WORKER}/quote?keys=${encodeURIComponent(keys)}`, {headers:{'X-PIN':PIN}}),
+      fetch(`${WORKER}/margins-live`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','X-PIN':PIN},
+        body: JSON.stringify({
+          instruments: openPos.map(p => ({
+            instrument_key: p.instrKey,
+            quantity: p.lots * p.lotSize
+          }))
+        })
+      })
+    ]);
 
-    if (data.data) {
-      // Upstox returns: { "NSE_EQ:DMART": { last_price: 3956.8, instrument_token: "NSE_EQ|INE192R01011", ... } }
-      // Response key = "SEGMENT:TRADING_SYMBOL", instrument_token = "SEGMENT|ISIN"
-      // We match by: response key contains our tradingSym, OR instrument_token matches our instrKey
-
-      for (const p of S.positions) {
-        if (p.closed || !p.instrKey) continue;
-        let q = null;
-        for (const [respKey, val] of Object.entries(data.data)) {
-          // Match by instrument_token (pipe format) = our instrKey
-          if (val.instrument_token === p.instrKey) { q = val; break; }
-          // Match by trading symbol in response key e.g. "NSE_EQ:DMART" contains "DMART"
-          const sym = respKey.split(':')[1];
-          if (sym && (sym === p.tradingSym || sym === p.symbol)) { q = val; break; }
-        }
-        if (q) {
-          const prevLtp = p.ltp; // save old ltp before updating
-          p.ltp = q.last_price || 0;
-          // ohlc.close during market hours = previous session close (reliable)
-          // Use net_change to back-calculate: prevClose = ltp - net_change
-          const netChange = q.net_change || 0;
-          if (netChange !== 0 && p.ltp) {
-            p.prevClose = p.ltp - netChange;
-          } else if (q.ohlc?.close && q.ohlc.close !== p.ltp) {
-            p.prevClose = q.ohlc.close;
+    // Process prices
+    if (priceRes.ok) {
+      const data = await priceRes.json();
+      if (data.data) {
+        for (const p of S.positions) {
+          if (p.closed || !p.instrKey) continue;
+          let q = null;
+          for (const [respKey, v] of Object.entries(data.data)) {
+            if (v.instrument_token === p.instrKey) { q = v; break; }
+            const sym = respKey.split(':')[1];
+            if (sym && (sym === p.tradingSym || sym === p.symbol)) { q = v; break; }
           }
-          // else prevClose stays as is
-          if (p.prevClose && p.ltp && p.prevClose !== p.ltp) {
-            p.ltpChgPct = ((p.ltp - p.prevClose) / p.prevClose * 100);
+          if (q) {
+            const prevLtp = p.ltp;
+            p.ltp = q.last_price || 0;
+            const netChange = q.net_change || 0;
+            if (netChange !== 0 && p.ltp) {
+              p.prevClose = p.ltp - netChange;
+            } else if (q.ohlc?.close && q.ohlc.close !== p.ltp) {
+              p.prevClose = q.ohlc.close;
+            }
+            if (p.prevClose && p.ltp && p.prevClose !== p.ltp) {
+              p.ltpChgPct = ((p.ltp - p.prevClose) / p.prevClose * 100);
+            }
           }
         }
       }
-      S.lastRefresh = new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'});
-      render(); // just re-render, don't save every 15s
     }
+
+    // Process live margins from Upstox
+    if (marginRes.ok) {
+      const mdata = await marginRes.json();
+      if (mdata.margins) {
+        for (const p of S.positions) {
+          if (p.closed || !p.instrKey) continue;
+          const liveMargin = mdata.margins[p.instrKey];
+          if (liveMargin && liveMargin > 0) {
+            p.liveMargin = liveMargin; // store live margin separately
+          }
+        }
+      }
+    }
+
+    S.lastRefresh = new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'});
+    render();
   } catch(e){ console.error('Refresh failed:', e); }
   if(ico) ico.style.animation='';
 }
@@ -598,15 +618,35 @@ async function doSearch(q) {
   const el = document.getElementById('srchRes');
   if (!PIN) { el.innerHTML='<div class="sri-msg">Not logged in</div>'; return; }
   try {
-    const r = await fetch(`${WORKER}/search?q=${encodeURIComponent(q)}&mode=eq`, {headers:{'X-PIN':PIN}});
-    if (r.status===503) { el.innerHTML='<div class="sri-msg">Token expired</div>'; return; }
-    const data = await r.json();
-    const items = (data.data||[]).filter(i => i.instrument_type === 'EQ' && i.segment === 'NSE_EQ').slice(0, 20);
+    // Search both EQ (for LTP) and FO futures (for lot size) in parallel
+    const [eqRes, foRes] = await Promise.all([
+      fetch(`${WORKER}/search?q=${encodeURIComponent(q)}&mode=eq`, {headers:{'X-PIN':PIN}}),
+      fetch(`${WORKER}/search?q=${encodeURIComponent(q)}&mode=fo`, {headers:{'X-PIN':PIN}})
+    ]);
+    if (eqRes.status===503) { el.innerHTML='<div class="sri-msg">Token expired</div>'; return; }
+
+    const eqData = eqRes.ok ? await eqRes.json() : {data:[]};
+    const foData = foRes.ok ? await foRes.json() : {data:[]};
+
+    // Build lot size map from FUT instruments: underlying_symbol → lot_size
+    const lotMap = {};
+    for (const i of (foData.data||[])) {
+      if (i.instrument_type === 'FUT' && i.underlying_symbol && i.lot_size) {
+        if (!lotMap[i.underlying_symbol]) lotMap[i.underlying_symbol] = i.lot_size;
+      }
+    }
+
+    const items = (eqData.data||[]).filter(i => i.instrument_type === 'EQ' && i.segment === 'NSE_EQ').slice(0, 20);
     if (!items.length) { el.innerHTML='<div class="sri-msg">No results</div>'; return; }
+
     el.innerHTML = items.map(i=>{
-      return `<div class="sri" onclick='pickInstr(${JSON.stringify(i)})'>
+      const lotSize = lotMap[i.trading_symbol] || lotMap[i.short_name] || null;
+      const lotLabel = lotSize ? ` · Lot: ${lotSize}` : '';
+      // Embed lotSize and foData into the item for pickInstr
+      const enriched = {...i, _lotSize: lotSize};
+      return `<div class="sri" onclick='pickInstr(${JSON.stringify(enriched)})'>
         <div class="sri-name">${i.trading_symbol||i.name}</div>
-        <div class="sri-meta">${i.name||''} · ${i.exchange||'NSE'}</div>
+        <div class="sri-meta">${i.name||''} · ${i.exchange||'NSE'}${lotLabel}</div>
       </div>`;
     }).join('');
   } catch(e) { el.innerHTML='<div class="sri-msg">Error</div>'; }
@@ -622,11 +662,13 @@ function iType(i) {
 }
 
 function pickInstr(i) {
+  const lotSize = i._lotSize || 1;
   selInstr = {
     symbol: i.trading_symbol || i.name,
     tradingSym: i.trading_symbol,
-    instrKey: i.instrument_key, // equity key for LTP
-    lotSize: 1,
+    instrKey: i.instrument_key,
+    lotSize,
+    marginPct: 20, // will be updated by fetchLotAndMargin
     type: 'EQ',
     exchange: i.exchange || 'NSE',
     name: i.name || i.trading_symbol
@@ -635,11 +677,16 @@ function pickInstr(i) {
   document.getElementById('srchRes').style.display = 'none';
   document.getElementById('selInstr').style.display = 'block';
   document.getElementById('si_name').textContent = i.trading_symbol || i.name;
-  document.getElementById('si_meta').textContent = `${i.name||''} · ${i.exchange||'NSE'} · Fetching lot size…`;
-  document.getElementById('f_lsz').value = '';
-  document.getElementById('f_shares').value = '';
+  document.getElementById('f_lsz').value = lotSize;
 
-  // Auto-fetch lot size + margin from Zerodha page
+  if (lotSize > 1) {
+    document.getElementById('si_meta').textContent = `${i.name||''} · ${i.exchange||'NSE'} · Lot: ${lotSize} · Fetching margin rate…`;
+  } else {
+    document.getElementById('si_meta').textContent = `${i.name||''} · ${i.exchange||'NSE'} · Not in F&O — lot size 1`;
+  }
+  updateShares();
+
+  // Fetch NRML margin % from worker (still uses hardcoded FO_MARGIN_PCT as fallback)
   fetchLotAndMargin(selInstr.symbol);
 
   // Auto-fetch historical close if date already set
@@ -652,20 +699,21 @@ async function fetchLotAndMargin(symbol) {
     const r = await fetch(`${WORKER}/margin?symbol=${encodeURIComponent(symbol)}`, {headers:{'X-PIN':PIN}});
     const d = await r.json();
     if (d.found && d.margin) {
-      selInstr.lotSize = d.margin.lotSize || 1;
-      selInstr.marginPerLot = d.margin.margin || 0;
-      document.getElementById('f_lsz').value = selInstr.lotSize;
-      document.getElementById('si_meta').textContent = `${selInstr.name} · ${selInstr.exchange} · Lot size: ${selInstr.lotSize} · Margin/lot: ₹${selInstr.marginPerLot.toLocaleString('en-IN')}`;
-      updateShares();
+      // Only update marginPct — lotSize already set from instrument search
+      selInstr.marginPct = d.margin.marginPct || 20;
+      // If lot size wasn't found from search (not in F&O), use table as fallback
+      if (selInstr.lotSize <= 1 && d.margin.lotSize > 1) {
+        selInstr.lotSize = d.margin.lotSize;
+        document.getElementById('f_lsz').value = selInstr.lotSize;
+        updateShares();
+      }
+      document.getElementById('si_meta').textContent = `${selInstr.name||symbol} · ${selInstr.exchange} · Lot: ${selInstr.lotSize} · NRML: ${selInstr.marginPct}% of value`;
     } else {
-      selInstr.lotSize = 1;
-      selInstr.marginPerLot = 0;
-      document.getElementById('f_lsz').value = 1;
-      document.getElementById('si_meta').textContent = `${selInstr.name} · ${selInstr.exchange} · Not in F&O list — lot size set to 1`;
-      updateShares();
+      selInstr.marginPct = 20;
+      document.getElementById('si_meta').textContent = `${selInstr.name||symbol} · ${selInstr.exchange} · Lot: ${selInstr.lotSize} · Not in F&O margin list`;
     }
   } catch(e) {
-    document.getElementById('si_meta').textContent = `${selInstr.name} · Error fetching F&O data`;
+    // silently fail — lot size and margin already set with defaults
   }
 }
 
@@ -753,8 +801,14 @@ function clearInstr() {
 }
 
 // ═══ CALCS ═══
-const ltp = p => p.closed?(p.sellPrice||0):(p.ltp||p.buyPrice||0);
-const val = p => ltp(p)*p.lots*p.lotSize;
+const ltp    = p => p.closed?(p.sellPrice||0):(p.ltp||p.buyPrice||0);
+const val    = p => ltp(p)*p.lots*p.lotSize;
+// Margin: live from Upstox /charges/margin API, fetched on every price refresh
+// Shows — until first refresh. Never estimated from a formula.
+const margin = p => {
+  if (p.closed) return 0;
+  return p.liveMargin || 0; // 0 = not yet fetched, shown as — in UI
+};
 const totPnL = p => (ltp(p)-p.buyPrice)*p.lots*p.lotSize;
 // Day P&L: uses net_change-based prevClose
 const dayPnL = p => {
@@ -768,7 +822,7 @@ function smry(pos) {
   const op=pos.filter(p=>!p.closed);
   return {
     holdVal: op.reduce((s,p)=>s+val(p),0),
-    margin:  op.reduce((s,p)=>s+(p.margin||0),0),
+    margin:  op.reduce((s,p)=>s+margin(p),0),
     dayPnL:  op.reduce((s,p)=>s+dayPnL(p),0),
     totPnL:  pos.reduce((s,p)=>s+totPnL(p),0),
     open:    op.length,
@@ -957,7 +1011,7 @@ function mkTable(title, positions, showAddBtn) {
       <td class="${pc(tp)}">₹${fp(tp)}</td>
       <td>${p.lots}×${fi(p.lotSize)}<br><span style="font-size:9px;color:var(--t3)">${fi(p.lots*p.lotSize)} sh</span></td>
       <td>₹${fi(v)}</td>
-      <td>${p.margin?'₹'+fi(p.margin):'—'}</td>
+      <td>${margin(p)>0?'₹'+fi(margin(p)):'—'}</td>
       <td style="font-size:11px;color:var(--t2)">${fd(p.buyDate)}</td>
       <td><div style="display:flex;gap:4px;justify-content:flex-end">
         <button class="bsm" onclick="openEdit('${p.id}')" style="color:var(--ac2);border-color:rgba(162,155,254,.3)">Edit</button>
@@ -994,10 +1048,9 @@ function openAddPos() {
 
 async function savePos() {
   if (!selInstr) { alert('Select a stock first'); return; }
-  const lots = parseInt(document.getElementById('f_lots').value) || 1;
-  const bp = parseFloat(document.getElementById('f_bp').value) || 0;
+  const lots    = parseInt(document.getElementById('f_lots').value) || 1;
+  const bp      = parseFloat(document.getElementById('f_bp').value) || 0;
   const lotSize = selInstr.lotSize || 1;
-  const marginPerLot = selInstr.marginPerLot || 0;
   S.positions.push({
     id: 'pos'+Date.now(),
     profileId: document.getElementById('f_prof').value,
@@ -1011,11 +1064,10 @@ async function savePos() {
     lots,
     lotSize,
     buyPrice: bp,
-    margin: lots * marginPerLot,  // auto-calculated: lots × margin per lot from Zerodha
-    marginPerLot,
     buyDate: document.getElementById('f_dt').value,
     notes: document.getElementById('f_nt').value.trim(),
-    ltp: bp, prevClose: bp, closed: false
+    closed: false
+    // liveMargin populated by refreshPrices() after save
   });
   await saveData();
   render();
