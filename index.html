@@ -166,14 +166,14 @@ select.finp option{background:var(--bg3)}
 /* Sortable table */
 .tbl-wrap{overflow-x:auto;padding:0 14px 14px;-webkit-overflow-scrolling:touch;position:relative}
 .tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:12px;min-width:700px}
-.tbl thead th{padding:8px 10px;text-align:right;font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;cursor:pointer;white-space:nowrap;user-select:none;border-bottom:2px solid var(--b2);background:#18181f;position:sticky;top:0;z-index:2}
-.tbl thead th:first-child{text-align:left;position:sticky;left:0;top:0;z-index:10;background:#18181f;box-shadow:3px 0 8px #09090e}
+.tbl thead th{padding:8px 10px;text-align:right;font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;cursor:pointer;white-space:nowrap;user-select:none;border-bottom:2px solid rgba(255,255,255,.12);background:#18181f;position:sticky;top:0;z-index:2}
+.tbl thead th:first-child{text-align:left;position:sticky;left:0;top:0;z-index:10;background:#18181f;min-width:110px;width:110px;border-right:1px solid rgba(255,255,255,.15)}
 .tbl th.sorted{color:var(--ac2)}
 .tbl th .arr{margin-left:2px;font-size:8px}
-.tbl tbody td{padding:8px 10px;text-align:right;white-space:nowrap;background:#111118;border-bottom:1px solid var(--b)}
-.tbl tbody td:first-child{text-align:left;position:sticky;left:0;z-index:5;background:#111118;box-shadow:3px 0 8px #09090e}
+.tbl tbody td{padding:8px 10px;text-align:right;white-space:nowrap;background:#111118;border-bottom:1px solid rgba(255,255,255,.07)}
+.tbl tbody td:first-child{text-align:left;position:sticky;left:0;z-index:5;background:#111118;min-width:110px;width:110px;border-right:1px solid rgba(255,255,255,.15)}
 .tbl tbody tr:hover td{background:#18181f}
-.tbl tbody tr:hover td:first-child{background:#18181f;box-shadow:3px 0 8px #09090e}
+.tbl tbody tr:hover td:first-child{background:#18181f}
 .tbl-sym{font-weight:700;font-size:12px}
 .tbl-meta{font-size:9px;color:var(--t3);margin-top:1px}
 .tbl-sec{padding:8px 14px 4px;font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.7px;display:flex;justify-content:space-between;align-items:center;margin-top:4px}
@@ -838,7 +838,7 @@ function mkTable(title, positions, showAddBtn) {
     return html + `<div style="padding:12px 14px;font-size:12px;color:var(--t3)">No positions yet.</div>`;
   }
 
-  html += `<div class="tbl-wrap"><table class="tbl"><thead><tr>
+  html += `<div style="overflow:hidden;border-radius:8px;margin:0 14px 14px;border:1px solid rgba(255,255,255,.07)"><div class="tbl-wrap" style="padding:0;margin:0;border-radius:0"><table class="tbl"><thead><tr>
     ${thSort('Symbol','symbol')}
     ${thSort('Buy','buy')}
     ${thSort('LTP','ltp')}
@@ -878,7 +878,7 @@ function mkTable(title, positions, showAddBtn) {
       </div></td>
     </tr>`;
   }
-  html += `</tbody></table></div>`;
+  html += `</tbody></table></div></div>`;
   return html;
 }
 
