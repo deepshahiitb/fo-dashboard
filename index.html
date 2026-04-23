@@ -143,6 +143,25 @@ select.finp option{background:var(--bg3)}
 .mode-btn{background:transparent;border:none;color:var(--t2);padding:8px 10px;font-size:12px;font-weight:700;cursor:pointer;border-radius:5px;transition:all .15s}
 .mode-btn.active{background:var(--ac);color:#fff}
 
+/* View toggle */
+.view-btn{background:transparent;border:none;color:var(--t2);padding:5px 14px;font-size:11px;font-weight:700;cursor:pointer;border-radius:5px;transition:all .15s}
+.view-btn.active{background:var(--ac);color:#fff}
+
+/* PnL log */
+.pnl-log{padding:0 14px 14px}
+.pnl-card{background:var(--bg2);border:1px solid var(--b);border-radius:var(--r);padding:10px 12px;margin-bottom:7px}
+.pnl-row1{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.pnl-symbol{font-size:13px;font-weight:700}
+.pnl-val{font-size:14px;font-weight:700}
+.pnl-row2{display:grid;grid-template-columns:repeat(2,1fr);gap:4px 12px;font-size:10px;color:var(--t2)}
+.pnl-row2 span{display:flex;justify-content:space-between}
+.pnl-row2 b{color:var(--t);font-weight:600}
+.pnl-hdr{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;padding:10px 12px;background:var(--bg3);border-radius:var(--r2);font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;font-weight:700;margin-bottom:8px}
+.pnl-total-card{background:var(--bg2);border:1px solid var(--b2);border-radius:var(--r);padding:12px;margin-bottom:10px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.pnl-stat{text-align:center}
+.pnl-stat-l{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px}
+.pnl-stat-v{font-size:16px;font-weight:700}
+
 .loading{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--bg2);border:1px solid var(--b2);border-radius:var(--r);padding:16px 24px;font-size:13px;color:var(--t2);z-index:300}
 </style>
 </head>
@@ -182,6 +201,10 @@ select.finp option{background:var(--bg3)}
         </button>
         <button class="ibtn" onclick="openSheet('settingsSheet')">⚙</button>
       </div>
+    </div>
+    <div style="display:flex;gap:0;margin-bottom:8px;background:var(--bg3);padding:3px;border-radius:8px;border:1px solid var(--b2);width:fit-content">
+      <button type="button" id="view_holdings" class="view-btn active" onclick="setView('holdings')">Holdings</button>
+      <button type="button" id="view_pnl" class="view-btn" onclick="setView('pnl')">P&amp;L Log</button>
     </div>
     <div class="ptabs" id="ptabs"></div>
   </div>
@@ -232,14 +255,18 @@ select.finp option{background:var(--bg3)}
 <div class="overlay" id="sellSheet">
   <div class="sheet">
     <div class="sh"></div>
-    <div class="sh-h"><span class="sh-t">Close Position</span><button class="sh-x" onclick="closeSheet('sellSheet')">✕</button></div>
+    <div class="sh-h"><span class="sh-t">Sell Position</span><button class="sh-x" onclick="closeSheet('sellSheet')">✕</button></div>
     <div class="fbody">
       <div class="sell-sum" id="sellInfo"></div>
+      <div class="frow">
+        <div class="fgrp"><span class="flbl">Lots to Sell</span><input class="finp" id="s_lots" type="number" min="1" value="1" oninput="updateSellShares()"></div>
+        <div class="fgrp"><span class="flbl">Total Shares (auto)</span><input class="finp" id="s_shares" readonly style="opacity:.7"></div>
+      </div>
       <div class="frow">
         <div class="fgrp"><span class="flbl">Sell Price ₹</span><input class="finp" id="s_px" type="number" step="0.05"></div>
         <div class="fgrp"><span class="flbl">Sell Date</span><input class="finp" id="s_dt" type="date"></div>
       </div>
-      <button class="bp" style="background:var(--rd)" onclick="confirmSell()">Close Position</button>
+      <button class="bp" style="background:var(--rd)" onclick="confirmSell()">Sell</button>
     </div>
   </div>
 </div>
@@ -288,6 +315,14 @@ let PIN = '';
 let sellId = null;
 let selInstr = null;
 let srchTimer = null;
+let currentView = 'holdings'; // 'holdings' or 'pnl'
+
+function setView(v) {
+  currentView = v;
+  document.getElementById('view_holdings').classList.toggle('active', v==='holdings');
+  document.getElementById('view_pnl').classList.toggle('active', v==='pnl');
+  render();
+}
 
 // ═══ CLOUD STORAGE ═══
 async function loadData() {
@@ -350,9 +385,10 @@ function enterApp() {
   document.getElementById('app').style.display='flex';
   loadData();
   checkToken();
-  if (isMarketOpen()) refreshPrices();
+  // Always fetch prices on app open (gets close price after market hours, live during market hours)
+  refreshPrices();
   setInterval(()=>{ if(isMarketOpen()) refreshPrices(); }, 3*60*1000);
-  setInterval(()=>{ loadData(); }, 30*1000); // auto-sync every 30s
+  setInterval(()=>{ loadData(); }, 30*1000);
   setInterval(renderMarket, 30000);
 }
 
@@ -417,15 +453,39 @@ async function refreshPrices() {
     if (r.status===401) { checkToken(); return; }
     const data = await r.json();
     if (data.data) {
+      // Upstox returns keys like "NSE_EQ:TCS" instead of "NSE_EQ|INE467B01029"
+      // Build a lookup by both instrument_token and symbol
+      const lookup = {};
+      for (const [key, val] of Object.entries(data.data)) {
+        // Store by the instrument_token field if present
+        if (val.instrument_token) lookup[val.instrument_token] = val;
+        // Also store by the response key itself
+        lookup[key] = val;
+        // And by symbol (NSE_EQ:TCS → TCS)
+        if (val.symbol) lookup[val.symbol] = val;
+      }
+      
       for (const p of S.positions) {
-        const q = data.data[p.instrKey];
-        if (q) { p.ltp=q.last_price||0; p.prevClose=q.ohlc?.close||0; p.ltpChgPct=q.net_change_percentage||0; }
+        if (p.closed || !p.instrKey) continue;
+        // Try multiple lookups to find the quote
+        let q = lookup[p.instrKey];
+        if (!q && p.tradingSym) q = lookup[p.tradingSym];
+        if (!q && p.symbol) q = lookup[p.symbol];
+        if (q) {
+          p.ltp = q.last_price || 0;
+          p.prevClose = q.ohlc?.close || q.prev_ohlc?.close || 0;
+          p.ltpChgPct = q.net_change_percentage || 0;
+          // If we don't have net_change_percentage, compute it
+          if (!p.ltpChgPct && p.prevClose && p.ltp) {
+            p.ltpChgPct = ((p.ltp - p.prevClose) / p.prevClose) * 100;
+          }
+        }
       }
       S.lastRefresh = new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'});
       await saveData();
       render();
     }
-  } catch(e){}
+  } catch(e){ console.error('Refresh failed:', e); }
 }
 
 // ═══ SEARCH ═══
@@ -552,8 +612,69 @@ const fd = d => d?new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'s
 
 // ═══ RENDER ═══
 function render() {
-  renderMarket(); renderTabs(); renderSum(); renderMain();
+  renderMarket(); renderTabs();
+  if (currentView === 'pnl') {
+    document.getElementById('sum').style.display = 'none';
+    renderPnL();
+  } else {
+    document.getElementById('sum').style.display = '';
+    renderSum();
+    renderMain();
+  }
   document.getElementById('lastUpd').textContent = S.lastRefresh?`Prices as of ${S.lastRefresh} IST`:'';
+}
+
+function renderPnL() {
+  let pos = S.positions.filter(p => p.closed);
+  if (S.activeProfile !== 'overall') pos = pos.filter(p => p.profileId === S.activeProfile);
+
+  // Sort newest sell first
+  pos.sort((a,b) => (b.sellDate||'').localeCompare(a.sellDate||''));
+
+  const totalPnL = pos.reduce((s,p) => s + totPnL(p), 0);
+  const winners = pos.filter(p => totPnL(p) > 0).length;
+  const losers = pos.filter(p => totPnL(p) < 0).length;
+
+  let html = `<div class="pnl-log">`;
+  html += `<div class="pnl-total-card">
+    <div class="pnl-stat"><div class="pnl-stat-l">Total P&L</div><div class="pnl-stat-v ${pc(totalPnL)}">₹${fp(totalPnL)}</div></div>
+    <div class="pnl-stat"><div class="pnl-stat-l">Winners</div><div class="pnl-stat-v pos">${winners}</div></div>
+    <div class="pnl-stat"><div class="pnl-stat-l">Losers</div><div class="pnl-stat-v neg">${losers}</div></div>
+  </div>`;
+
+  if (!pos.length) {
+    html += `<div class="empty">No closed trades yet.</div></div>`;
+    document.getElementById('main').innerHTML = html;
+    return;
+  }
+
+  for (const p of pos) {
+    const tp = totPnL(p);
+    const days = p.buyDate && p.sellDate ? Math.round((new Date(p.sellDate) - new Date(p.buyDate)) / (1000*60*60*24)) : 0;
+    const shares = p.lots * p.lotSize;
+    const profName = S.activeProfile === 'overall' ? (S.profiles.find(x=>x.id===p.profileId)?.name||'') : '';
+    const returnPct = p.buyPrice ? ((p.sellPrice - p.buyPrice) / p.buyPrice * 100) : 0;
+    html += `<div class="pnl-card">
+      <div class="pnl-row1">
+        <div>
+          <div class="pnl-symbol">${p.symbol}</div>
+          <div style="font-size:9px;color:var(--t3);margin-top:1px">${profName?profName+' · ':''}${p.lots} lot${p.lots>1?'s':''} × ${p.lotSize} = ${shares} shares</div>
+        </div>
+        <div style="text-align:right">
+          <div class="pnl-val ${pc(tp)}">₹${fp(tp)}</div>
+          <div style="font-size:10px;margin-top:1px" class="${pc(tp)}">${returnPct>=0?'+':''}${returnPct.toFixed(2)}%</div>
+        </div>
+      </div>
+      <div class="pnl-row2">
+        <span>Bought <b>${fd(p.buyDate)} @ ₹${fi(p.buyPrice,2)}</b></span>
+        <span>Sold <b>${fd(p.sellDate)} @ ₹${fi(p.sellPrice,2)}</b></span>
+        <span>Held <b>${days} day${days!==1?'s':''}</b></span>
+        ${p.notes?`<span style="grid-column:1/-1">Notes: <b>${p.notes}</b></span>`:''}
+      </div>
+    </div>`;
+  }
+  html += `</div>`;
+  document.getElementById('main').innerHTML = html;
 }
 
 function renderTabs() {
@@ -579,22 +700,18 @@ function renderMain() {
     document.getElementById('main').innerHTML=`<div class="empty">No profiles yet.<br>Tap <strong>+ Add</strong> or <strong>⚙</strong> to create one.</div>`;
     return;
   }
-  let pos=S.positions;
+  let pos=S.positions.filter(p=>!p.closed); // holdings view = open positions only
   if (S.activeProfile!=='overall') pos=pos.filter(p=>p.profileId===S.activeProfile);
-  const open=pos.filter(p=>!p.closed), closed=pos.filter(p=>p.closed);
   let html='';
   if (S.activeProfile==='overall') {
     for (const pr of S.profiles) {
-      const pp=open.filter(p=>p.profileId===pr.id);
+      const pp=pos.filter(p=>p.profileId===pr.id);
       if (!pp.length) continue;
       html+=mkSec(pr.name,pp,false);
     }
-    if (closed.length) html+=mkSec('Closed',closed,true);
-    if (!html) html=`<div class="empty">No positions yet.<br>Select a profile above to add positions.</div>`;
+    if (!html) html=`<div class="empty">No open positions.<br>Select a profile above to add positions.</div>`;
   } else {
-    // Always show section header with + button for specific profile
-    html+=mkSec('Open Positions',open,false);
-    if (closed.length) html+=mkSec('Closed',closed,true);
+    html+=mkSec('Open Positions',pos,false);
   }
   document.getElementById('main').innerHTML=html;
 }
@@ -703,22 +820,53 @@ async function savePos() {
 function openSell(id) {
   const p=S.positions.find(x=>x.id===id); if(!p) return;
   sellId=id;
-  document.getElementById('s_px').value=p.ltp||p.buyPrice||0;
-  document.getElementById('s_dt').value=todayIST();
-  document.getElementById('sellInfo').innerHTML=`
-    <div class="sell-row"><span>Symbol</span><span>${p.symbol} ${p.expiry||''}</span></div>
-    <div class="sell-row"><span>Type</span><span>${p.type}</span></div>
-    <div class="sell-row"><span>Lots×Size</span><span>${p.lots}×${p.lotSize}</span></div>
-    <div class="sell-row"><span>Buy</span><span>₹${fi(p.buyPrice,2)}</span></div>
-    <div class="sell-row"><span>LTP</span><span>₹${fi(p.ltp||p.buyPrice,2)}</span></div>`;
+  document.getElementById('s_lots').value = p.lots;
+  document.getElementById('s_lots').max = p.lots;
+  document.getElementById('s_shares').value = p.lots * p.lotSize;
+  document.getElementById('s_px').value = p.ltp || p.buyPrice || 0;
+  document.getElementById('s_dt').value = todayIST();
+  document.getElementById('sellInfo').innerHTML = `
+    <div class="sell-row"><span>Symbol</span><span>${p.symbol}</span></div>
+    <div class="sell-row"><span>Open Lots</span><span>${p.lots} × ${p.lotSize} = ${p.lots*p.lotSize} shares</span></div>
+    <div class="sell-row"><span>Buy Price</span><span>₹${fi(p.buyPrice,2)}</span></div>
+    <div class="sell-row"><span>Current LTP</span><span>₹${fi(p.ltp||p.buyPrice,2)}</span></div>`;
   openSheet('sellSheet');
 }
 
+function updateSellShares() {
+  const p = S.positions.find(x=>x.id===sellId); if(!p) return;
+  let lots = parseInt(document.getElementById('s_lots').value) || 1;
+  if (lots > p.lots) { lots = p.lots; document.getElementById('s_lots').value = p.lots; }
+  if (lots < 1) { lots = 1; document.getElementById('s_lots').value = 1; }
+  document.getElementById('s_shares').value = lots * p.lotSize;
+}
+
 async function confirmSell() {
-  const p=S.positions.find(x=>x.id===sellId); if(!p) return;
-  p.sellPrice=parseFloat(document.getElementById('s_px').value)||0;
-  p.sellDate=document.getElementById('s_dt').value;
-  p.closed=true;
+  const p = S.positions.find(x=>x.id===sellId); if(!p) return;
+  const sellLots = parseInt(document.getElementById('s_lots').value) || p.lots;
+  const sellPrice = parseFloat(document.getElementById('s_px').value) || 0;
+  const sellDate = document.getElementById('s_dt').value;
+
+  if (sellLots >= p.lots) {
+    // Full close
+    p.sellPrice = sellPrice;
+    p.sellDate = sellDate;
+    p.closed = true;
+  } else {
+    // Partial close: split into sold + remaining
+    const closedPortion = {
+      ...p,
+      id: 'pos' + Date.now(),
+      lots: sellLots,
+      margin: sellLots * (p.marginPerLot || 0),
+      sellPrice,
+      sellDate,
+      closed: true
+    };
+    p.lots = p.lots - sellLots;
+    p.margin = p.lots * (p.marginPerLot || 0);
+    S.positions.push(closedPortion);
+  }
   await saveData();
   render();
   closeSheet('sellSheet');
