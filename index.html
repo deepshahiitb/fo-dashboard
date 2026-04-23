@@ -77,6 +77,7 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:-apple-sys
 .bf{background:rgba(108,92,231,.18);color:var(--ac2)}
 .bc{background:rgba(0,184,148,.15);color:var(--gn)}
 .bp{background:rgba(225,112,85,.15);color:var(--rd)}
+.be{background:rgba(253,203,110,.18);color:var(--am)}
 .bx{background:var(--bg4);color:var(--t2)}
 .bs{background:var(--bg4);color:var(--t3)}
 .hc-r{text-align:right;flex-shrink:0;margin-left:8px}
@@ -138,6 +139,10 @@ select.finp option{background:var(--bg3)}
 .sell-row{display:flex;justify-content:space-between;font-size:12px;padding:2px 0}
 .sell-row span:first-child{color:var(--t2)}
 
+/* Mode toggle */
+.mode-btn{background:transparent;border:none;color:var(--t2);padding:8px 10px;font-size:12px;font-weight:700;cursor:pointer;border-radius:5px;transition:all .15s}
+.mode-btn.active{background:var(--ac);color:#fff}
+
 .loading{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--bg2);border:1px solid var(--b2);border-radius:var(--r);padding:16px 24px;font-size:13px;color:var(--t2);z-index:300}
 </style>
 </head>
@@ -196,9 +201,9 @@ select.finp option{background:var(--bg3)}
     <div class="fbody">
       <div class="fgrp"><span class="flbl">Profile</span><select class="finp" id="f_prof"></select></div>
       <div class="fgrp">
-        <span class="flbl">Search Instrument</span>
+        <span class="flbl">Search Stock</span>
         <div class="srch-wrap">
-          <input class="finp" id="f_srch" placeholder="NIFTY, BANKNIFTY, RELIANCE…" oninput="onSearch(this.value)" autocomplete="off">
+          <input class="finp" id="f_srch" placeholder="TCS, RELIANCE, INFY…" oninput="onSearch(this.value)" autocomplete="off">
           <div class="srch-res" id="srchRes"></div>
         </div>
         <span class="hint">Select from list</span>
@@ -209,15 +214,15 @@ select.finp option{background:var(--bg3)}
         <button onclick="clearInstr()" style="font-size:10px;color:var(--rd);background:none;border:none;cursor:pointer;margin-top:4px">✕ Clear</button>
       </div>
       <div class="frow">
-        <div class="fgrp"><span class="flbl">Lots</span><input class="finp" id="f_lots" type="number" min="1"></div>
-        <div class="fgrp"><span class="flbl">Lot Size</span><input class="finp" id="f_lsz" readonly style="opacity:.7"></div>
+        <div class="fgrp"><span class="flbl">Number of Lots</span><input class="finp" id="f_lots" type="number" min="1" value="1" oninput="updateShares()"></div>
+        <div class="fgrp"><span class="flbl">Lot Size (auto)</span><input class="finp" id="f_lsz" readonly style="opacity:.7"></div>
       </div>
+      <div class="fgrp"><span class="flbl">Total Shares (auto)</span><input class="finp" id="f_shares" readonly style="opacity:.7"></div>
       <div class="frow">
         <div class="fgrp"><span class="flbl">Buy Price ₹</span><input class="finp" id="f_bp" type="number" step="0.05"></div>
         <div class="fgrp"><span class="flbl">Buy Date</span><input class="finp" id="f_dt" type="date"></div>
       </div>
-      <div class="fgrp"><span class="flbl">Margin ₹</span><input class="finp" id="f_mg" type="number"></div>
-      <div class="fgrp"><span class="flbl">Notes</span><input class="finp" id="f_nt"></div>
+      <div class="fgrp"><span class="flbl">Notes (optional)</span><input class="finp" id="f_nt"></div>
       <button class="bp" onclick="savePos()">Add Position</button>
     </div>
   </div>
@@ -436,16 +441,15 @@ async function doSearch(q) {
   const el = document.getElementById('srchRes');
   if (!PIN) { el.innerHTML='<div class="sri-msg">Not logged in</div>'; return; }
   try {
-    const r = await fetch(`${WORKER}/search?q=${encodeURIComponent(q)}`, {headers:{'X-PIN':PIN}});
+    const r = await fetch(`${WORKER}/search?q=${encodeURIComponent(q)}&mode=eq`, {headers:{'X-PIN':PIN}});
     if (r.status===503) { el.innerHTML='<div class="sri-msg">Token expired</div>'; return; }
     const data = await r.json();
-    const items = (data.data||[]).filter(i=>['FUTIDX','FUTSTK','OPTIDX','OPTSTK','FUT','CE','PE'].includes(i.instrument_type)).slice(0,20);
+    const items = (data.data||[]).filter(i => i.instrument_type === 'EQ' && i.segment === 'NSE_EQ').slice(0, 20);
     if (!items.length) { el.innerHTML='<div class="sri-msg">No results</div>'; return; }
     el.innerHTML = items.map(i=>{
-      const tp = iType(i);
       return `<div class="sri" onclick='pickInstr(${JSON.stringify(i)})'>
         <div class="sri-name">${i.trading_symbol||i.name}</div>
-        <div class="sri-meta">${tp}${i.expiry?' · '+i.expiry:''}${i.strike_price?' · ₹'+i.strike_price:''} · Lot:${i.lot_size||'?'} · ${i.exchange||''}</div>
+        <div class="sri-meta">${i.name||''} · ${i.exchange||'NSE'}</div>
       </div>`;
     }).join('');
   } catch(e) { el.innerHTML='<div class="sri-msg">Error</div>'; }
@@ -461,52 +465,64 @@ function iType(i) {
 }
 
 function pickInstr(i) {
-  selInstr = {symbol:i.name||i.trading_symbol, tradingSym:i.trading_symbol, instrKey:i.instrument_key, lotSize:i.lot_size||1, type:iType(i), expiry:i.expiry||'', strike:i.strike_price||null, exchange:i.exchange||'NSE'};
-  document.getElementById('f_srch').value = i.trading_symbol||i.name;
-  document.getElementById('srchRes').style.display='none';
-  document.getElementById('f_lsz').value = i.lot_size||'';
-  document.getElementById('selInstr').style.display='block';
-  document.getElementById('si_name').textContent = i.trading_symbol||i.name;
-  document.getElementById('si_meta').textContent = `${selInstr.type} · ${i.exchange||''}${i.expiry?' · '+i.expiry:''}${i.strike_price?' · ₹'+i.strike_price:''} · Lot: ${i.lot_size||'?'}`;
-  
-  // Auto-fetch margin from Zerodha for futures
-  if (selInstr.type === 'FUT') {
-    fetchMargin(selInstr.symbol, i.expiry);
+  selInstr = {
+    symbol: i.trading_symbol || i.name,
+    tradingSym: i.trading_symbol,
+    instrKey: i.instrument_key, // equity key for LTP
+    lotSize: 1,
+    type: 'EQ',
+    exchange: i.exchange || 'NSE',
+    name: i.name || i.trading_symbol
+  };
+  document.getElementById('f_srch').value = i.trading_symbol || i.name;
+  document.getElementById('srchRes').style.display = 'none';
+  document.getElementById('selInstr').style.display = 'block';
+  document.getElementById('si_name').textContent = i.trading_symbol || i.name;
+  document.getElementById('si_meta').textContent = `${i.name||''} · ${i.exchange||'NSE'} · Fetching lot size…`;
+  document.getElementById('f_lsz').value = '';
+  document.getElementById('f_shares').value = '';
+
+  // Auto-fetch lot size + margin from Zerodha page
+  fetchLotAndMargin(selInstr.symbol);
+}
+
+async function fetchLotAndMargin(symbol) {
+  try {
+    const r = await fetch(`${WORKER}/margin?symbol=${encodeURIComponent(symbol)}`, {headers:{'X-PIN':PIN}});
+    const d = await r.json();
+    if (d.found && d.margin) {
+      selInstr.lotSize = d.margin.lotSize || 1;
+      selInstr.marginPerLot = d.margin.margin || 0;
+      document.getElementById('f_lsz').value = selInstr.lotSize;
+      document.getElementById('si_meta').textContent = `${selInstr.name} · ${selInstr.exchange} · Lot size: ${selInstr.lotSize} · Margin/lot: ₹${selInstr.marginPerLot.toLocaleString('en-IN')}`;
+      updateShares();
+    } else {
+      selInstr.lotSize = 1;
+      selInstr.marginPerLot = 0;
+      document.getElementById('f_lsz').value = 1;
+      document.getElementById('si_meta').textContent = `${selInstr.name} · ${selInstr.exchange} · Not in F&O list — lot size set to 1`;
+      updateShares();
+    }
+  } catch(e) {
+    document.getElementById('si_meta').textContent = `${selInstr.name} · Error fetching F&O data`;
   }
 }
 
-async function fetchMargin(symbol, expiry) {
-  const mgInp = document.getElementById('f_mg');
-  mgInp.placeholder = 'Fetching from Zerodha...';
-  try {
-    // Convert expiry format from "2026-04-28" to "28-APR-2026"
-    let expiryStr = '';
-    if (expiry) {
-      const d = new Date(expiry);
-      if (!isNaN(d)) {
-        const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-        expiryStr = `${String(d.getDate()).padStart(2,'0')}-${months[d.getMonth()]}-${d.getFullYear()}`;
-      }
-    }
-    const r = await fetch(`${WORKER}/margin?symbol=${encodeURIComponent(symbol)}&expiry=${encodeURIComponent(expiryStr)}`, {
-      headers: {'X-PIN':PIN}
-    });
-    const d = await r.json();
-    if (d.found && d.margin) {
-      mgInp.value = d.margin.margin;
-      mgInp.placeholder = `Auto-filled: ${d.margin.margin}`;
-    } else {
-      mgInp.placeholder = 'Enter manually';
-    }
-  } catch(e) {
-    mgInp.placeholder = 'Enter manually';
-  }
+function updateShares() {
+  const lots = parseInt(document.getElementById('f_lots').value) || 0;
+  const lotSize = parseInt(document.getElementById('f_lsz').value) || 0;
+  document.getElementById('f_shares').value = lots * lotSize;
+}
+
+async function fetchMargin_OLD_UNUSED(symbol, expiry) {
+  // Replaced by fetchLotAndMargin
 }
 
 function clearInstr() {
   selInstr=null;
   document.getElementById('f_srch').value='';
   document.getElementById('f_lsz').value='';
+  document.getElementById('f_shares').value='';
   document.getElementById('selInstr').style.display='none';
 }
 
@@ -592,7 +608,7 @@ function mkSec(title,positions,isClosed) {
 
 function mkCard(p) {
   const l=ltp(p),dp=dayPnL(p),tp=totPnL(p),v=val(p);
-  const tb=p.type==='FUT'?'bf':p.type==='CE'?'bc':'bp';
+  const tb=p.type==='FUT'?'bf':p.type==='CE'?'bc':p.type==='PE'?'bp':'be';
   const sk=p.type!=='FUT'&&p.strike?` ${fi(p.strike,0)}`:'';
   const chg=p.ltpChgPct?` (${p.ltpChgPct>=0?'+':''}${p.ltpChgPct.toFixed(2)}%)`:'';
   const pn=S.activeProfile==='overall'?(S.profiles.find(x=>x.id===p.profileId)?.name||''):'';
@@ -648,24 +664,36 @@ function openAddPos() {
   document.getElementById('f_prof').innerHTML=S.profiles.map(p=>`<option value="${p.id}" ${p.id===S.activeProfile?'selected':''}>${p.name}</option>`).join('');
   document.getElementById('f_dt').value=todayIST();
   clearInstr();
-  ['f_lots','f_bp','f_mg','f_nt'].forEach(id=>document.getElementById(id).value='');
+  ['f_bp','f_nt'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f_lots').value = '1';
+  document.getElementById('f_shares').value = '';
   openSheet('addPosSheet');
 }
 
 async function savePos() {
-  if (!selInstr) { alert('Select instrument first'); return; }
-  const lots=parseInt(document.getElementById('f_lots').value)||1;
-  const bp=parseFloat(document.getElementById('f_bp').value)||0;
+  if (!selInstr) { alert('Select a stock first'); return; }
+  const lots = parseInt(document.getElementById('f_lots').value) || 1;
+  const bp = parseFloat(document.getElementById('f_bp').value) || 0;
+  const lotSize = selInstr.lotSize || 1;
+  const marginPerLot = selInstr.marginPerLot || 0;
   S.positions.push({
-    id:'pos'+Date.now(),
-    profileId:document.getElementById('f_prof').value,
-    symbol:selInstr.symbol, tradingSym:selInstr.tradingSym, instrKey:selInstr.instrKey,
-    type:selInstr.type, exchange:selInstr.exchange, expiry:selInstr.expiry, strike:selInstr.strike,
-    lots, lotSize:selInstr.lotSize, buyPrice:bp,
-    margin:parseFloat(document.getElementById('f_mg').value)||0,
-    buyDate:document.getElementById('f_dt').value,
-    notes:document.getElementById('f_nt').value.trim(),
-    ltp:bp, prevClose:bp, closed:false
+    id: 'pos'+Date.now(),
+    profileId: document.getElementById('f_prof').value,
+    symbol: selInstr.symbol,
+    tradingSym: selInstr.tradingSym,
+    instrKey: selInstr.instrKey,
+    type: 'EQ',
+    exchange: selInstr.exchange,
+    expiry: '',
+    strike: null,
+    lots,
+    lotSize,
+    buyPrice: bp,
+    margin: lots * marginPerLot,  // auto-calculated: lots × margin per lot from Zerodha
+    marginPerLot,
+    buyDate: document.getElementById('f_dt').value,
+    notes: document.getElementById('f_nt').value.trim(),
+    ltp: bp, prevClose: bp, closed: false
   });
   await saveData();
   render();
