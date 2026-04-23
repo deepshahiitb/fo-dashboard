@@ -289,6 +289,28 @@ select.finp option{background:var(--bg3)}
   </div>
 </div>
 
+<!-- EDIT POSITION -->
+<div class="overlay" id="editSheet">
+  <div class="sheet">
+    <div class="sh"></div>
+    <div class="sh-h"><span class="sh-t">Edit Position</span><button class="sh-x" onclick="closeSheet('editSheet')">✕</button></div>
+    <div class="fbody">
+      <div style="font-size:11px;color:var(--t2);background:var(--bg3);padding:8px 11px;border-radius:var(--r2)" id="editLabel"></div>
+      <div class="frow">
+        <div class="fgrp"><span class="flbl">Lots</span><input class="finp" id="e_lots" type="number" min="1"></div>
+        <div class="fgrp"><span class="flbl">Lot Size</span><input class="finp" id="e_lsz" type="number" min="1"></div>
+      </div>
+      <div class="frow">
+        <div class="fgrp"><span class="flbl">Buy Price ₹</span><input class="finp" id="e_bp" type="number" step="0.05"></div>
+        <div class="fgrp"><span class="flbl">Buy Date</span><input class="finp" id="e_dt" type="date"></div>
+      </div>
+      <div class="fgrp"><span class="flbl">Margin ₹</span><input class="finp" id="e_mg" type="number"></div>
+      <div class="fgrp"><span class="flbl">Notes</span><input class="finp" id="e_nt"></div>
+      <button class="bp" onclick="saveEdit()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
 <!-- SETTINGS -->
 <div class="overlay" id="settingsSheet">
   <div class="sheet">
@@ -330,7 +352,35 @@ const AUTH_URL = `https://api.upstox.com/v2/login/authorization/dialog?response_
 
 let S = {profiles:[], positions:[], activeProfile:'overall', lastRefresh:null};
 let PIN = '';
-let sellId = null;
+let editId = null;
+function openEdit(id) {
+  const p = S.positions.find(x=>x.id===id); if(!p) return;
+  editId = id;
+  document.getElementById('editLabel').textContent = `${p.symbol} · ${p.exchange||'NSE'} · Bought ${fd(p.buyDate)}`;
+  document.getElementById('e_lots').value = p.lots;
+  document.getElementById('e_lsz').value = p.lotSize;
+  document.getElementById('e_bp').value = p.buyPrice;
+  document.getElementById('e_dt').value = p.buyDate || '';
+  document.getElementById('e_mg').value = p.margin || '';
+  document.getElementById('e_nt').value = p.notes || '';
+  openSheet('editSheet');
+}
+
+async function saveEdit() {
+  const p = S.positions.find(x=>x.id===editId); if(!p) return;
+  const lots = parseInt(document.getElementById('e_lots').value) || p.lots;
+  const lotSize = parseInt(document.getElementById('e_lsz').value) || p.lotSize;
+  p.lots = lots;
+  p.lotSize = lotSize;
+  p.buyPrice = parseFloat(document.getElementById('e_bp').value) || p.buyPrice;
+  p.buyDate = document.getElementById('e_dt').value || p.buyDate;
+  p.margin = parseFloat(document.getElementById('e_mg').value) || 0;
+  p.marginPerLot = lots > 0 ? p.margin / lots : 0;
+  p.notes = document.getElementById('e_nt').value.trim();
+  await saveData();
+  render();
+  closeSheet('editSheet');
+}
 let selInstr = null;
 let srchTimer = null;
 let currentView = 'holdings';
@@ -493,9 +543,20 @@ async function refreshPrices() {
           if (sym && (sym === p.tradingSym || sym === p.symbol)) { q = val; break; }
         }
         if (q) {
+          const prevLtp = p.ltp; // save old ltp before updating
           p.ltp = q.last_price || 0;
-          p.prevClose = q.ohlc?.close || 0;
-          if (p.prevClose && p.ltp) p.ltpChgPct = ((p.ltp - p.prevClose) / p.prevClose * 100);
+          // ohlc.close during market hours = previous session close (reliable)
+          // Use net_change to back-calculate: prevClose = ltp - net_change
+          const netChange = q.net_change || 0;
+          if (netChange !== 0 && p.ltp) {
+            p.prevClose = p.ltp - netChange;
+          } else if (q.ohlc?.close && q.ohlc.close !== p.ltp) {
+            p.prevClose = q.ohlc.close;
+          }
+          // else prevClose stays as is
+          if (p.prevClose && p.ltp && p.prevClose !== p.ltp) {
+            p.ltpChgPct = ((p.ltp - p.prevClose) / p.prevClose * 100);
+          }
         }
       }
       S.lastRefresh = new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'});
@@ -608,10 +669,11 @@ function clearInstr() {
 const ltp = p => p.closed?(p.sellPrice||0):(p.ltp||p.buyPrice||0);
 const val = p => ltp(p)*p.lots*p.lotSize;
 const totPnL = p => (ltp(p)-p.buyPrice)*p.lots*p.lotSize;
-// Day P&L: only meaningful when prevClose is populated and != ltp (i.e. after a refresh)
+// Day P&L: uses net_change-based prevClose
 const dayPnL = p => {
   if (p.closed) return 0;
-  if (!p.prevClose || p.prevClose === p.ltp) return 0; // not yet refreshed
+  if (!p.prevClose || !p.ltp) return 0;
+  if (p.prevClose === p.buyPrice && p.ltp === p.buyPrice) return 0; // never refreshed
   return (p.ltp - p.prevClose) * p.lots * p.lotSize;
 };
 
@@ -811,6 +873,7 @@ function mkTable(title, positions, showAddBtn) {
       <td class="${pc(tp)}">₹${fp(tp)}</td>
       <td style="font-size:11px">${fd(p.buyDate)}</td>
       <td><div style="display:flex;gap:4px;justify-content:flex-end">
+        <button class="bsm" onclick="openEdit('${p.id}')" style="color:var(--ac2);border-color:rgba(162,155,254,.3)">Edit</button>
         <button class="bsm sell" onclick="openSell('${p.id}')">Sell</button>
         <button class="bsm del" onclick="delPos('${p.id}')">Del</button>
       </div></td>
