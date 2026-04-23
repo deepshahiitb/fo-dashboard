@@ -539,23 +539,16 @@ async function refreshPrices() {
   const openPos = S.positions.filter(p=>!p.closed&&p.instrKey);
   if (!openPos.length) { if(ico) ico.style.animation=''; return; }
   const keys = [...new Set(openPos.map(p=>p.instrKey))].join(',');
+  const symbols = [...new Set(openPos.map(p=>p.symbol))];
 
   try {
-    // Fetch prices and margins in parallel
+    // Fetch prices and Zerodha margins in parallel
     const [priceRes, marginRes] = await Promise.all([
       fetch(`${WORKER}/quote?keys=${encodeURIComponent(keys)}`, {headers:{'X-PIN':PIN}}),
-      fetch(`${WORKER}/margins-live`, {
+      fetch(`${WORKER}/margins-zerodha`, {
         method: 'POST',
         headers: {'Content-Type':'application/json','X-PIN':PIN},
-        body: JSON.stringify({
-          instruments: openPos
-            .filter(p => p.foInstrKey || p.instrKey) // need some key
-            .map(p => ({
-              instrument_key: p.foInstrKey || p.instrKey, // futures key preferred
-              _posId: p.id,   // track which position this maps to
-              quantity: p.lots * p.lotSize
-            }))
-        })
+        body: JSON.stringify({ symbols })
       })
     ]);
 
@@ -572,7 +565,6 @@ async function refreshPrices() {
             if (sym && (sym === p.tradingSym || sym === p.symbol)) { q = v; break; }
           }
           if (q) {
-            const prevLtp = p.ltp;
             p.ltp = q.last_price || 0;
             const netChange = q.net_change || 0;
             if (netChange !== 0 && p.ltp) {
@@ -588,17 +580,18 @@ async function refreshPrices() {
       }
     }
 
-    // Process live margins from Upstox
+    // Process Zerodha margins — works for ALL positions by symbol name
     if (marginRes.ok) {
       const mdata = await marginRes.json();
       if (mdata.margins) {
         for (const p of S.positions) {
           if (p.closed) continue;
-          // Look up by futures key first, then equity key
-          const key = p.foInstrKey || p.instrKey;
-          const liveMargin = mdata.margins[key];
-          if (liveMargin && liveMargin > 0) {
-            p.liveMargin = liveMargin;
+          const zm = mdata.margins[p.symbol];
+          if (zm && zm.margin > 0) {
+            // Scale margin by lots: Zerodha shows per-contract margin
+            // margin per lot × number of lots
+            p.liveMargin = Math.round(zm.margin * p.lots);
+            p.zerodhaRate = zm.rate; // store for reference
           }
         }
       }
@@ -775,9 +768,10 @@ async function fetchHistoricalClose(instrKey, date) {
 
 function onBuyDateChange() {
   const date = document.getElementById('f_dt').value;
-  if (selInstr && date) {
-    fetchHistoricalClose(selInstr.instrKey, date);
-  }
+  if (!selInstr || !date) return;
+  // Clear current price so user sees the fetch happening
+  document.getElementById('f_bp').value = '';
+  fetchHistoricalClose(selInstr.instrKey, date);
 }
 
 function clearInstr() {
