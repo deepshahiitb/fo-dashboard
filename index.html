@@ -46,6 +46,7 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:-apple-sys
 .mkt-dot{width:5px;height:5px;border-radius:50%;background:var(--t3);flex-shrink:0}
 .mkt-dot.on{background:var(--gn);animation:blink 2s infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 .ibtn{background:var(--bg3);border:1px solid var(--b2);border-radius:7px;padding:5px 9px;font-size:11px;color:var(--t2);cursor:pointer;display:flex;align-items:center;gap:4px}
 .ptabs{display:flex;gap:5px;overflow-x:auto;padding:0 0 10px;scrollbar-width:none}
 .ptabs::-webkit-scrollbar{display:none}
@@ -196,9 +197,10 @@ select.finp option{background:var(--bg3)}
       <div class="title">F<em>&</em>O <span style="color:var(--t2);font-weight:400;font-size:13px">Family</span></div>
       <div class="hdr-right">
         <div class="mkt-pill"><span class="mkt-dot" id="mktDot"></span><span id="mktLbl">—</span></div>
-        <button class="ibtn" onclick="refreshPrices()">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        <button class="ibtn" id="priceRefBtn" onclick="refreshPrices()" title="Refresh prices">
+          <svg id="refIco" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
         </button>
+        <button class="ibtn" onclick="hardReload()" title="Reload app">↺</button>
         <button class="ibtn" onclick="openSheet('settingsSheet')">⚙</button>
       </div>
     </div>
@@ -445,40 +447,38 @@ function renderMarket() {
 // ═══ PRICES ═══
 async function refreshPrices() {
   if (!PIN) return;
+  const ico = document.getElementById('refIco');
+  if (ico) ico.style.animation = 'spin 1s linear infinite';
+
   const openPos = S.positions.filter(p=>!p.closed&&p.instrKey);
-  if (!openPos.length) return;
-  const keys = [...new Set(openPos.map(p=>p.instrKey))].join('|');
+  if (!openPos.length) { if(ico) ico.style.animation=''; return; }
+  // Send keys pipe-separated (NOT URL-encoded) so worker passes them straight to Upstox
+  const keys = [...new Set(openPos.map(p=>p.instrKey))].join(',');
+
   try {
     const r = await fetch(`${WORKER}/quote?keys=${encodeURIComponent(keys)}`, {headers:{'X-PIN':PIN}});
-    if (r.status===401) { checkToken(); return; }
+    if (r.status===401) { checkToken(); if(ico) ico.style.animation=''; return; }
     const data = await r.json();
+
     if (data.data) {
-      // Upstox returns keys like "NSE_EQ:TCS" instead of "NSE_EQ|INE467B01029"
-      // Build a lookup by both instrument_token and symbol
-      const lookup = {};
-      for (const [key, val] of Object.entries(data.data)) {
-        // Store by the instrument_token field if present
-        if (val.instrument_token) lookup[val.instrument_token] = val;
-        // Also store by the response key itself
-        lookup[key] = val;
-        // And by symbol (NSE_EQ:TCS → TCS)
-        if (val.symbol) lookup[val.symbol] = val;
-      }
-      
+      // Upstox returns: { "NSE_EQ:DMART": { last_price: 3956.8, instrument_token: "NSE_EQ|INE192R01011", ... } }
+      // Response key = "SEGMENT:TRADING_SYMBOL", instrument_token = "SEGMENT|ISIN"
+      // We match by: response key contains our tradingSym, OR instrument_token matches our instrKey
+
       for (const p of S.positions) {
         if (p.closed || !p.instrKey) continue;
-        // Try multiple lookups to find the quote
-        let q = lookup[p.instrKey];
-        if (!q && p.tradingSym) q = lookup[p.tradingSym];
-        if (!q && p.symbol) q = lookup[p.symbol];
+        let q = null;
+        for (const [respKey, val] of Object.entries(data.data)) {
+          // Match by instrument_token (pipe format) = our instrKey
+          if (val.instrument_token === p.instrKey) { q = val; break; }
+          // Match by trading symbol in response key e.g. "NSE_EQ:DMART" contains "DMART"
+          const sym = respKey.split(':')[1];
+          if (sym && (sym === p.tradingSym || sym === p.symbol)) { q = val; break; }
+        }
         if (q) {
           p.ltp = q.last_price || 0;
-          p.prevClose = q.ohlc?.close || q.prev_ohlc?.close || 0;
-          p.ltpChgPct = q.net_change_percentage || 0;
-          // If we don't have net_change_percentage, compute it
-          if (!p.ltpChgPct && p.prevClose && p.ltp) {
-            p.ltpChgPct = ((p.ltp - p.prevClose) / p.prevClose) * 100;
-          }
+          p.prevClose = q.ohlc?.close || 0;
+          if (p.prevClose && p.ltp) p.ltpChgPct = ((p.ltp - p.prevClose) / p.prevClose * 100);
         }
       }
       S.lastRefresh = new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'});
@@ -486,6 +486,7 @@ async function refreshPrices() {
       render();
     }
   } catch(e){ console.error('Refresh failed:', e); }
+  if(ico) ico.style.animation='';
 }
 
 // ═══ SEARCH ═══
@@ -936,6 +937,11 @@ function openSheet(id) {
 function closeSheet(id) { document.getElementById(id).classList.remove('open'); }
 document.querySelectorAll('.overlay').forEach(el=>el.addEventListener('click',e=>{if(e.target===el)closeSheet(el.id);}));
 document.addEventListener('click',e=>{if(!e.target.closest('.srch-wrap'))document.getElementById('srchRes').style.display='none';});
+
+// Hard reload the page — forces fresh HTML from GitHub, clears all caches
+function hardReload() {
+  window.location.reload(true);
+}
 
 // ═══ INIT ═══
 async function init() {
