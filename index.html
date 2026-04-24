@@ -434,7 +434,7 @@ async function saveData() {
     const clean = {
       profiles: S.profiles,
       positions: S.positions.map(p => {
-        const { ltp, prevClose, ltpChgPct, ltpChg, ...rest } = p;
+        const { ltp, prevClose, ltpChgPct, ltpChg, liveMargin, zerodhaRate, ...rest } = p;
         return rest;
       })
     };
@@ -549,25 +549,21 @@ async function refreshPrices() {
 
   const openPos = S.positions.filter(p=>!p.closed&&p.instrKey);
   if (!openPos.length) { if(ico) ico.style.animation=''; return; }
-  const keys = [...new Set(openPos.map(p=>p.instrKey))].join(',');
+  const keys    = [...new Set(openPos.map(p=>p.instrKey))].join(',');
   const symbols = [...new Set(openPos.map(p=>p.symbol))];
 
   try {
-    // Fetch prices and Zerodha margins in parallel
-    const [priceRes, marginRes] = await Promise.all([
+    // Fetch prices and margin rates in parallel
+    const [priceRes, ratesRes] = await Promise.all([
       fetch(`${WORKER}/quote?keys=${encodeURIComponent(keys)}`, {headers:{'X-PIN':PIN}}),
       fetch(`${WORKER}/margins-zerodha`, {
-        method: 'POST',
-        headers: {'Content-Type':'application/json','X-PIN':PIN},
-        body: JSON.stringify({
-          symbols,
-          ltpMap:  Object.fromEntries(openPos.map(p => [p.symbol, p.ltp || p.buyPrice || 0])),
-          lotsMap: Object.fromEntries(openPos.map(p => [p.symbol, p.lots * p.lotSize]))
-        })
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-PIN':PIN},
+        body: JSON.stringify({ symbols })
       })
     ]);
 
-    // Process prices
+    // Step 1: apply prices
     if (priceRes.ok) {
       const data = await priceRes.json();
       if (data.data) {
@@ -595,15 +591,17 @@ async function refreshPrices() {
       }
     }
 
-    // Process Zerodha margins — worker already computed total rupee margin
-    if (marginRes.ok) {
-      const mdata = await marginRes.json();
-      if (mdata.margins) {
+    // Step 2: apply margins using the now-updated LTP values
+    if (ratesRes.ok) {
+      const rdata = await ratesRes.json();
+      if (rdata.rates) {
         for (const p of S.positions) {
           if (p.closed) continue;
-          const zm = mdata.margins[p.symbol];
-          if (zm && zm.margin > 0) {
-            p.liveMargin = zm.margin; // already total: LTP × lots × lotSize × rate%
+          const rate = rdata.rates[p.symbol];
+          // Use live ltp if available, fall back to buyPrice for positions not yet priced
+          const ltpForMargin = p.ltp || p.buyPrice || 0;
+          if (rate && ltpForMargin > 0) {
+            p.liveMargin = Math.round(ltpForMargin * p.lots * p.lotSize * rate / 100);
           }
         }
       }
