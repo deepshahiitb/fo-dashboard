@@ -300,10 +300,9 @@ select.finp option{background:var(--bg3)}
         <div class="fgrp"><span class="flbl">Lot Size</span><input class="finp" id="e_lsz" type="number" min="1"></div>
       </div>
       <div class="frow">
-        <div class="fgrp"><span class="flbl">Buy Price ₹</span><input class="finp" id="e_bp" type="number" step="0.05"></div>
-        <div class="fgrp"><span class="flbl">Buy Date</span><input class="finp" id="e_dt" type="date"></div>
+        <div class="fgrp"><span class="flbl">Buy Price ₹</span><input class="finp" id="e_bp" type="number" step="0.05" placeholder="Auto-fills from date"></div>
+        <div class="fgrp"><span class="flbl">Buy Date</span><input class="finp" id="e_dt" type="date" onchange="onEditDateChange()"></div>
       </div>
-      <div class="fgrp"><span class="flbl">Margin ₹</span><input class="finp" id="e_mg" type="number"></div>
       <div class="fgrp"><span class="flbl">Notes</span><input class="finp" id="e_nt"></div>
       <button class="bp" onclick="saveEdit()">Save Changes</button>
     </div>
@@ -352,33 +351,45 @@ const AUTH_URL = `https://api.upstox.com/v2/login/authorization/dialog?response_
 let S = {profiles:[], positions:[], activeProfile:'overall', lastRefresh:null};
 let PIN = '';
 let editId = null;
+let editInstrKey = null; // instrKey of position being edited, for historical price fetch
+
 function openEdit(id) {
   const p = S.positions.find(x=>x.id===id); if(!p) return;
   editId = id;
-  document.getElementById('editLabel').textContent = `${p.symbol} · ${p.exchange||'NSE'} · Bought ${fd(p.buyDate)}`;
+  editInstrKey = p.instrKey;
+  document.getElementById('editLabel').textContent = `${p.symbol} · ${p.exchange||'NSE'}`;
   document.getElementById('e_lots').value = p.lots;
   document.getElementById('e_lsz').value = p.lotSize;
-  document.getElementById('e_bp').value = p.buyPrice;
+  document.getElementById('e_bp').value = p.buyPrice || '';
   document.getElementById('e_dt').value = p.buyDate || '';
-  document.getElementById('e_mg').value = p.margin || '';
   document.getElementById('e_nt').value = p.notes || '';
   openSheet('editSheet');
 }
 
+function onEditDateChange() {
+  const date = document.getElementById('e_dt').value;
+  if (!editInstrKey || !date) return;
+  // Clear price so user sees the fetch
+  document.getElementById('e_bp').value = '';
+  // Reuse the same fetchHistoricalClose but targeting edit form fields
+  fetchHistoricalClose(editInstrKey, date, 'e_bp');
+}
+
 async function saveEdit() {
   const p = S.positions.find(x=>x.id===editId); if(!p) return;
-  const lots = parseInt(document.getElementById('e_lots').value) || p.lots;
-  const lotSize = parseInt(document.getElementById('e_lsz').value) || p.lotSize;
-  p.lots = lots;
-  p.lotSize = lotSize;
-  p.buyPrice = parseFloat(document.getElementById('e_bp').value) || p.buyPrice;
+  p.lots    = parseInt(document.getElementById('e_lots').value) || p.lots;
+  p.lotSize = parseInt(document.getElementById('e_lsz').value) || p.lotSize;
+  const bpVal = parseFloat(document.getElementById('e_bp').value);
+  if (!isNaN(bpVal) && bpVal > 0) p.buyPrice = bpVal;
   p.buyDate = document.getElementById('e_dt').value || p.buyDate;
-  p.margin = parseFloat(document.getElementById('e_mg').value) || 0;
-  p.marginPerLot = lots > 0 ? p.margin / lots : 0;
-  p.notes = document.getElementById('e_nt').value.trim();
+  p.notes   = document.getElementById('e_nt').value.trim();
+  delete p.margin;       // remove legacy field
+  delete p.marginPerLot; // remove legacy field
+  delete p.marginPct;    // remove legacy field
   await saveData();
   render();
   closeSheet('editSheet');
+  refreshPrices(); // refresh so margin recalculates with new lots/lotSize
 }
 let selInstr = null;
 let srchTimer = null;
@@ -548,7 +559,11 @@ async function refreshPrices() {
       fetch(`${WORKER}/margins-zerodha`, {
         method: 'POST',
         headers: {'Content-Type':'application/json','X-PIN':PIN},
-        body: JSON.stringify({ symbols })
+        body: JSON.stringify({
+          symbols,
+          ltpMap:  Object.fromEntries(openPos.map(p => [p.symbol, p.ltp || p.buyPrice || 0])),
+          lotsMap: Object.fromEntries(openPos.map(p => [p.symbol, p.lots * p.lotSize]))
+        })
       })
     ]);
 
@@ -580,7 +595,7 @@ async function refreshPrices() {
       }
     }
 
-    // Process Zerodha margins — works for ALL positions by symbol name
+    // Process Zerodha margins — worker already computed total rupee margin
     if (marginRes.ok) {
       const mdata = await marginRes.json();
       if (mdata.margins) {
@@ -588,10 +603,7 @@ async function refreshPrices() {
           if (p.closed) continue;
           const zm = mdata.margins[p.symbol];
           if (zm && zm.margin > 0) {
-            // Scale margin by lots: Zerodha shows per-contract margin
-            // margin per lot × number of lots
-            p.liveMargin = Math.round(zm.margin * p.lots);
-            p.zerodhaRate = zm.rate; // store for reference
+            p.liveMargin = zm.margin; // already total: LTP × lots × lotSize × rate%
           }
         }
       }
@@ -734,9 +746,9 @@ async function backfillMissingPrices() {
   }
 }
 
-async function fetchHistoricalClose(instrKey, date) {
+async function fetchHistoricalClose(instrKey, date, targetFieldId = 'f_bp') {
   if (!instrKey || !date || !PIN) return;
-  const bpInp = document.getElementById('f_bp');
+  const bpInp = document.getElementById(targetFieldId);
   if (!bpInp) return;
   bpInp.placeholder = 'Fetching close price…';
   bpInp.style.borderColor = 'var(--ac2)';
