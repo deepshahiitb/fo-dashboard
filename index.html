@@ -1,1229 +1,203 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="F&O">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
-<title>F&O Family Dashboard</title>
-<style>
-:root{--bg:#09090e;--bg2:#111118;--bg3:#18181f;--bg4:#21212b;--bg5:#2a2a36;--b:rgba(255,255,255,.07);--b2:rgba(255,255,255,.12);--b3:rgba(255,255,255,.18);--t:#eeeef5;--t2:#8888a8;--t3:#44445a;--ac:#6c5ce7;--ac2:#a29bfe;--gn:#00b894;--gn2:rgba(0,184,148,.13);--rd:#e17055;--rd2:rgba(225,112,85,.13);--am:#fdcb6e;--am2:rgba(253,203,110,.13);--r:10px;--r2:7px}
-*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{height:100%;background:var(--bg);color:var(--t);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;font-size:15px;overflow-x:hidden}
-
-/* GATE */
-#gate{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:32px 20px;gap:0}
-.logo{font-size:48px;font-weight:800;letter-spacing:-3px;margin-bottom:4px}
-.logo em{color:var(--ac2);font-style:normal}
-.tagline{font-size:12px;color:var(--t2);margin-bottom:44px}
-.gate-card{background:var(--bg2);border:1px solid var(--b2);border-radius:16px;padding:26px 22px;width:100%;max-width:340px}
-.gate-card h2{font-size:15px;font-weight:700;margin-bottom:4px}
-.gate-card p{font-size:12px;color:var(--t2);margin-bottom:20px;line-height:1.6}
-.pin-dots{display:flex;gap:12px;justify-content:center;margin-bottom:20px}
-.pin-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--b3);transition:all .15s}
-.pin-dot.filled{background:var(--ac);border-color:var(--ac)}
-.pin-error{color:var(--rd);font-size:12px;text-align:center;margin-bottom:12px;min-height:18px}
-.numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-.nk{background:var(--bg3);border:1px solid var(--b2);border-radius:12px;padding:16px;font-size:20px;font-weight:600;cursor:pointer;text-align:center;transition:all .1s;color:var(--t)}
-.nk:active{background:var(--bg5);transform:scale(.95)}
-.nk.del{font-size:15px;color:var(--t2)}
-.nk.empty{background:transparent;border-color:transparent;pointer-events:none}
-.owner-link{margin-top:18px;text-align:center;font-size:11px;color:var(--t3)}
-.owner-link a{color:var(--t2);cursor:pointer;text-decoration:underline}
-
-/* APP */
-#app{display:none;flex-direction:column;min-height:100vh}
-.hdr{background:var(--bg2);border-bottom:1px solid var(--b);padding:12px 14px 0;position:sticky;top:0;z-index:100}
-.hdr-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
-.title{font-size:17px;font-weight:800;letter-spacing:-.5px}
-.title em{color:var(--ac2);font-style:normal}
-.hdr-right{display:flex;align-items:center;gap:7px}
-.mkt-pill{display:flex;align-items:center;gap:5px;background:var(--bg3);border:1px solid var(--b);border-radius:20px;padding:4px 9px;font-size:10px;color:var(--t2)}
-.mkt-dot{width:5px;height:5px;border-radius:50%;background:var(--t3);flex-shrink:0}
-.mkt-dot.on{background:var(--gn);animation:blink 2s infinite}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
-@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-.ibtn{background:var(--bg3);border:1px solid var(--b2);border-radius:7px;padding:5px 9px;font-size:11px;color:var(--t2);cursor:pointer;display:flex;align-items:center;gap:4px}
-.ptabs{display:flex;gap:5px;overflow-x:auto;padding:0 0 10px;scrollbar-width:none}
-.ptabs::-webkit-scrollbar{display:none}
-.ptab{flex-shrink:0;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--b2);background:transparent;color:var(--t2);white-space:nowrap}
-.ptab.active{background:var(--ac);border-color:var(--ac);color:#fff}
-.ptab.add{color:var(--ac2);border-color:rgba(108,92,231,.35)}
-
-/* SUMMARY */
-.sum{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:10px 14px}
-.sc{background:var(--bg2);border:1px solid var(--b);border-radius:var(--r);padding:10px 12px}
-.sc-l{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px}
-.sc-v{font-size:18px;font-weight:700;letter-spacing:-.5px}
-.sc-s{font-size:10px;color:var(--t2);margin-top:3px}
-.pos{color:var(--gn)}.neg{color:var(--rd)}.neu{color:var(--t)}
-
-/* SECTIONS */
-.sec{padding:0 14px 14px}
-.sec-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
-.sec-t{font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.8px}
-.btn-add{background:var(--ac);color:#fff;border:none;border-radius:6px;padding:5px 11px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
-
-/* HOLDING CARD */
-.hcard{background:var(--bg2);border:1px solid var(--b);border-radius:var(--r);margin-bottom:7px}
-.hcard.closed{opacity:.55}
-.hc-top{display:flex;align-items:flex-start;justify-content:space-between;padding:10px 12px 8px;border-bottom:1px solid var(--b)}
-.hc-name{font-size:13px;font-weight:700;letter-spacing:-.2px;line-height:1.2}
-.hc-meta{display:flex;gap:4px;margin-top:4px;flex-wrap:wrap}
-.badge{font-size:9px;font-weight:800;padding:2px 5px;border-radius:4px;letter-spacing:.5px}
-.bf{background:rgba(108,92,231,.18);color:var(--ac2)}
-.bc{background:rgba(0,184,148,.15);color:var(--gn)}
-.bp{background:rgba(225,112,85,.15);color:var(--rd)}
-.be{background:rgba(253,203,110,.18);color:var(--am)}
-.bx{background:var(--bg4);color:var(--t2)}
-.bs{background:var(--bg4);color:var(--t3)}
-.hc-r{text-align:right;flex-shrink:0;margin-left:8px}
-.hc-ltp{font-size:15px;font-weight:700;letter-spacing:-.3px}
-.hc-chg{font-size:10px;margin-top:2px}
-.hc-grid{display:grid;grid-template-columns:repeat(3,1fr)}
-.hcell{padding:7px 10px;border-right:1px solid var(--b)}
-.hcell:last-child{border-right:none}
-.hcl{font-size:8px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
-.hcv{font-size:11px;font-weight:600}
-.hc-foot{display:flex;align-items:center;justify-content:space-between;padding:7px 12px;background:var(--bg3);border-top:1px solid var(--b)}
-.hc-pnl{font-size:12px;font-weight:700}
-.hc-note{font-size:9px;color:var(--t3);margin-top:2px}
-.hc-btns{display:flex;gap:5px}
-.bsm{font-size:10px;font-weight:700;padding:4px 9px;border-radius:5px;border:1px solid var(--b2);background:transparent;color:var(--t2);cursor:pointer}
-.bsm.sell{border-color:rgba(225,112,85,.4);color:var(--rd)}
-.bsm.del{border-color:var(--b);color:var(--t3)}
-
-.empty{text-align:center;padding:36px 20px;color:var(--t3);font-size:12px}
-.last-upd{font-size:9px;color:var(--t3);padding:2px 14px 6px}
-.token-banner{display:none;background:var(--am2);border:1px solid rgba(253,203,110,.25);border-radius:var(--r2);padding:10px 13px;margin:10px 14px 0;font-size:12px;color:var(--am);line-height:1.6}
-.token-banner a{color:var(--am);font-weight:700;cursor:pointer;text-decoration:underline}
-
-/* SHEETS */
-.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:200;align-items:flex-end}
-.overlay.open{display:flex}
-.sheet{background:var(--bg2);border-radius:18px 18px 0 0;border:1px solid var(--b2);width:100%;max-width:480px;max-height:93vh;overflow-y:auto;padding-bottom:max(env(safe-area-inset-bottom),16px)}
-.sh{width:34px;height:3px;background:var(--b3);border-radius:2px;margin:9px auto 0}
-.sh-h{display:flex;align-items:center;justify-content:space-between;padding:13px 16px 10px;border-bottom:1px solid var(--b)}
-.sh-t{font-size:15px;font-weight:700}
-.sh-x{background:var(--bg3);border:none;color:var(--t2);width:26px;height:26px;border-radius:50%;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center}
-.fbody{padding:14px 16px;display:flex;flex-direction:column;gap:11px}
-.frow{display:grid;grid-template-columns:1fr 1fr;gap:9px}
-.fgrp{display:flex;flex-direction:column;gap:3px}
-.flbl{font-size:10px;color:var(--t2);font-weight:700;letter-spacing:.3px;text-transform:uppercase}
-.finp{background:var(--bg3);border:1px solid var(--b2);border-radius:var(--r2);padding:9px 11px;color:var(--t);font-size:14px;width:100%;outline:none}
-.finp:focus{border-color:var(--ac2)}
-select.finp option{background:var(--bg3)}
-.hint{font-size:9px;color:var(--t3);margin-top:2px}
-.bp{background:var(--ac);color:#fff;border:none;border-radius:var(--r);padding:13px;font-size:15px;font-weight:700;width:100%;cursor:pointer;margin-top:2px}
-.bp:active{opacity:.85}
-
-/* SEARCH */
-.srch-wrap{position:relative}
-.srch-res{position:absolute;top:calc(100% + 3px);left:0;right:0;background:var(--bg4);border:1px solid var(--b3);border-radius:var(--r2);z-index:50;max-height:220px;overflow-y:auto;display:none}
-.sri{padding:9px 11px;cursor:pointer;border-bottom:1px solid var(--b)}
-.sri:last-child{border-bottom:none}
-.sri:active{background:var(--bg5)}
-.sri-name{font-weight:700;font-size:12px}
-.sri-meta{font-size:10px;color:var(--t2);margin-top:2px}
-.sri-msg{padding:12px;text-align:center;font-size:12px;color:var(--t2)}
-
-/* PROFILE MANAGE */
-.pm-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--b);font-size:13px}
-.divider{border:none;border-top:1px solid var(--b);margin:4px 0}
-.sec-sep{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.7px;padding:10px 0 6px;font-weight:700}
-
-.sell-sum{background:var(--bg3);border-radius:var(--r2);padding:10px 13px;margin-bottom:4px}
-.sell-row{display:flex;justify-content:space-between;font-size:12px;padding:2px 0}
-.sell-row span:first-child{color:var(--t2)}
-
-/* Mode toggle */
-.mode-btn{background:transparent;border:none;color:var(--t2);padding:8px 10px;font-size:12px;font-weight:700;cursor:pointer;border-radius:5px;transition:all .15s}
-.mode-btn.active{background:var(--ac);color:#fff}
-
-/* View toggle */
-.view-btn{background:transparent;border:none;color:var(--t2);padding:5px 14px;font-size:11px;font-weight:700;cursor:pointer;border-radius:5px;transition:all .15s}
-.view-btn.active{background:var(--ac);color:#fff}
-
-/* PnL log */
-.pnl-log{padding:0 14px 14px}
-.pnl-card{background:var(--bg2);border:1px solid var(--b);border-radius:var(--r);padding:10px 12px;margin-bottom:7px}
-.pnl-row1{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
-.pnl-symbol{font-size:13px;font-weight:700}
-.pnl-val{font-size:14px;font-weight:700}
-.pnl-row2{display:grid;grid-template-columns:repeat(2,1fr);gap:4px 12px;font-size:10px;color:var(--t2)}
-.pnl-row2 span{display:flex;justify-content:space-between}
-.pnl-row2 b{color:var(--t);font-weight:600}
-.pnl-hdr{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;padding:10px 12px;background:var(--bg3);border-radius:var(--r2);font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;font-weight:700;margin-bottom:8px}
-.pnl-total-card{background:var(--bg2);border:1px solid var(--b2);border-radius:var(--r);padding:12px;margin-bottom:10px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
-.pnl-stat{text-align:center}
-.pnl-stat-l{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px}
-.pnl-stat-v{font-size:16px;font-weight:700}
-
-/* Sortable table */
-.tbl-wrap{overflow-x:auto;padding:0 14px 14px;-webkit-overflow-scrolling:touch;position:relative}
-.tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:12px;min-width:700px}
-.tbl thead th{padding:8px 10px;text-align:right;font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;cursor:pointer;white-space:nowrap;user-select:none;border-bottom:2px solid rgba(255,255,255,.12);background:#18181f;position:sticky;top:0;z-index:2}
-.tbl thead th:first-child{text-align:left;position:sticky;left:0;top:0;z-index:10;background:#18181f;min-width:110px;width:110px;border-right:1px solid rgba(255,255,255,.15)}
-.tbl th.sorted{color:var(--ac2)}
-.tbl th .arr{margin-left:2px;font-size:8px}
-.tbl tbody td{padding:8px 10px;text-align:right;white-space:nowrap;background:#111118;border-bottom:1px solid rgba(255,255,255,.07)}
-.tbl tbody td:first-child{text-align:left;position:sticky;left:0;z-index:5;background:#111118;min-width:110px;width:110px;border-right:1px solid rgba(255,255,255,.15)}
-.tbl tbody tr:hover td{background:#18181f}
-.tbl tbody tr:hover td:first-child{background:#18181f}
-.tbl-sym{font-weight:700;font-size:12px}
-.tbl-meta{font-size:9px;color:var(--t3);margin-top:1px}
-.tbl-sec{padding:8px 14px 4px;font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.7px;display:flex;justify-content:space-between;align-items:center;margin-top:4px}
-
-.loading{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--bg2);border:1px solid var(--b2);border-radius:var(--r);padding:16px 24px;font-size:13px;color:var(--t2);z-index:300}
-</style>
-</head>
-<body>
-
-<!-- GATE -->
-<div id="gate">
-  <div class="logo">F<em>&</em>O</div>
-  <div class="tagline">Family derivatives dashboard</div>
-  <div class="gate-card">
-    <h2>Enter PIN</h2>
-    <p>Enter the family PIN to access.</p>
-    <div class="pin-dots">
-      <div class="pin-dot" id="d0"></div><div class="pin-dot" id="d1"></div>
-      <div class="pin-dot" id="d2"></div><div class="pin-dot" id="d3"></div>
-    </div>
-    <div class="pin-error" id="pinErr"></div>
-    <div class="numpad">
-      <div class="nk" onclick="pinKey('1')">1</div><div class="nk" onclick="pinKey('2')">2</div><div class="nk" onclick="pinKey('3')">3</div>
-      <div class="nk" onclick="pinKey('4')">4</div><div class="nk" onclick="pinKey('5')">5</div><div class="nk" onclick="pinKey('6')">6</div>
-      <div class="nk" onclick="pinKey('7')">7</div><div class="nk" onclick="pinKey('8')">8</div><div class="nk" onclick="pinKey('9')">9</div>
-      <div class="nk empty"></div><div class="nk" onclick="pinKey('0')">0</div><div class="nk del" onclick="pinDel()">⌫</div>
-    </div>
-  </div>
-  <div class="owner-link">Owner? <a onclick="ownerLogin()">Login with Upstox</a> to refresh token.</div>
-</div>
-
-<!-- APP -->
-<div id="app">
-  <div class="hdr">
-    <div class="hdr-row">
-      <div class="title">F<em>&</em>O <span style="color:var(--t2);font-weight:400;font-size:13px">Family</span></div>
-      <div class="hdr-right">
-        <div class="mkt-pill"><span class="mkt-dot" id="mktDot"></span><span id="mktLbl">—</span></div>
-        <button class="ibtn" id="priceRefBtn" onclick="refreshPrices()" title="Refresh prices">
-          <svg id="refIco" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-        </button>
-        <button class="ibtn" onclick="hardReload()" title="Reload app">↺</button>
-        <button class="ibtn" onclick="openSheet('settingsSheet')">⚙</button>
-      </div>
-    </div>
-    <div style="display:flex;gap:0;margin-bottom:8px;background:var(--bg3);padding:3px;border-radius:8px;border:1px solid var(--b2);width:fit-content">
-      <button type="button" id="view_holdings" class="view-btn active" onclick="setView('holdings')">Holdings</button>
-      <button type="button" id="view_pnl" class="view-btn" onclick="setView('pnl')">P&amp;L Log</button>
-    </div>
-    <div class="ptabs" id="ptabs"></div>
-  </div>
-  <div class="token-banner" id="tokenBanner">⚠ Token expired. <a onclick="ownerLogin()">Owner: refresh here</a></div>
-  <div class="last-upd" id="lastUpd"></div>
-  <div class="sum" id="sum"></div>
-  <div id="main"></div>
-</div>
-
-<div class="loading" id="loading">Syncing...</div>
-
-<!-- ADD POSITION -->
-<div class="overlay" id="addPosSheet">
-  <div class="sheet">
-    <div class="sh"></div>
-    <div class="sh-h"><span class="sh-t">Add Position</span><button class="sh-x" onclick="closeSheet('addPosSheet')">✕</button></div>
-    <div class="fbody">
-      <div class="fgrp"><span class="flbl">Profile</span><select class="finp" id="f_prof"></select></div>
-      <div class="fgrp">
-        <span class="flbl">Search Stock</span>
-        <div class="srch-wrap">
-          <input class="finp" id="f_srch" placeholder="TCS, RELIANCE, INFY…" oninput="onSearch(this.value)" autocomplete="off">
-          <div class="srch-res" id="srchRes"></div>
-        </div>
-        <span class="hint">Select from list</span>
-      </div>
-      <div id="selInstr" style="display:none;background:var(--bg3);border:1px solid var(--b2);border-radius:var(--r2);padding:9px 12px">
-        <div style="font-size:12px;font-weight:700" id="si_name"></div>
-        <div style="font-size:10px;color:var(--t2);margin-top:2px" id="si_meta"></div>
-        <button onclick="clearInstr()" style="font-size:10px;color:var(--rd);background:none;border:none;cursor:pointer;margin-top:4px">✕ Clear</button>
-      </div>
-      <div class="frow">
-        <div class="fgrp"><span class="flbl">Number of Lots</span><input class="finp" id="f_lots" type="number" min="1" value="1" oninput="updateShares()"></div>
-        <div class="fgrp"><span class="flbl">Lot Size (auto)</span><input class="finp" id="f_lsz" readonly style="opacity:.7"></div>
-      </div>
-      <div class="fgrp"><span class="flbl">Total Shares (auto)</span><input class="finp" id="f_shares" readonly style="opacity:.7"></div>
-      <div class="frow">
-        <div class="fgrp"><span class="flbl">Buy Price ₹</span><input class="finp" id="f_bp" type="number" step="0.05" placeholder="Auto-fills from date"></div>
-        <div class="fgrp"><span class="flbl">Buy Date</span><input class="finp" id="f_dt" type="date" onchange="onBuyDateChange()"></div>
-      </div>
-      <div class="fgrp"><span class="flbl">Notes (optional)</span><input class="finp" id="f_nt"></div>
-      <button class="bp" onclick="savePos()">Add Position</button>
-    </div>
-  </div>
-</div>
-
-<!-- SELL -->
-<div class="overlay" id="sellSheet">
-  <div class="sheet">
-    <div class="sh"></div>
-    <div class="sh-h"><span class="sh-t">Sell Position</span><button class="sh-x" onclick="closeSheet('sellSheet')">✕</button></div>
-    <div class="fbody">
-      <div class="sell-sum" id="sellInfo"></div>
-      <div class="frow">
-        <div class="fgrp"><span class="flbl">Lots to Sell</span><input class="finp" id="s_lots" type="number" min="1" value="1" oninput="updateSellShares()"></div>
-        <div class="fgrp"><span class="flbl">Total Shares (auto)</span><input class="finp" id="s_shares" readonly style="opacity:.7"></div>
-      </div>
-      <div class="frow">
-        <div class="fgrp"><span class="flbl">Sell Price ₹</span><input class="finp" id="s_px" type="number" step="0.05"></div>
-        <div class="fgrp"><span class="flbl">Sell Date</span><input class="finp" id="s_dt" type="date"></div>
-      </div>
-      <button class="bp" style="background:var(--rd)" onclick="confirmSell()">Sell</button>
-    </div>
-  </div>
-</div>
-
-<!-- EDIT POSITION -->
-<div class="overlay" id="editSheet">
-  <div class="sheet">
-    <div class="sh"></div>
-    <div class="sh-h"><span class="sh-t">Edit Position</span><button class="sh-x" onclick="closeSheet('editSheet')">✕</button></div>
-    <div class="fbody">
-      <div style="font-size:11px;color:var(--t2);background:var(--bg3);padding:8px 11px;border-radius:var(--r2)" id="editLabel"></div>
-      <div class="frow">
-        <div class="fgrp"><span class="flbl">Lots</span><input class="finp" id="e_lots" type="number" min="1"></div>
-        <div class="fgrp"><span class="flbl">Lot Size</span><input class="finp" id="e_lsz" type="number" min="1"></div>
-      </div>
-      <div class="frow">
-        <div class="fgrp"><span class="flbl">Buy Price ₹</span><input class="finp" id="e_bp" type="number" step="0.05" placeholder="Auto-fills from date"></div>
-        <div class="fgrp"><span class="flbl">Buy Date</span><input class="finp" id="e_dt" type="date" onchange="onEditDateChange()"></div>
-      </div>
-      <div class="fgrp"><span class="flbl">Notes</span><input class="finp" id="e_nt"></div>
-      <button class="bp" onclick="saveEdit()">Save Changes</button>
-    </div>
-  </div>
-</div>
-
-<!-- SETTINGS -->
-<div class="overlay" id="settingsSheet">
-  <div class="sheet">
-    <div class="sh"></div>
-    <div class="sh-h"><span class="sh-t">Settings</span><button class="sh-x" onclick="closeSheet('settingsSheet')">✕</button></div>
-    <div class="fbody">
-      <div class="sec-sep">Profiles</div>
-      <div id="profList"></div>
-      <div class="frow" style="margin-top:6px">
-        <input class="finp" id="newProf" placeholder="Profile name">
-        <button class="bp" style="margin-top:0" onclick="addProf()">Add</button>
-      </div>
-      <hr class="divider">
-      <div class="sec-sep">Data</div>
-      <div style="display:flex;gap:8px">
-        <button class="bsm" style="flex:1;padding:10px" onclick="exportData()">Export</button>
-        <button class="bsm" style="flex:1;padding:10px" onclick="importClick()">Import</button>
-      </div>
-      <input type="file" id="impFile" accept=".json" style="display:none" onchange="importData(event)">
-      <hr class="divider">
-      <div style="text-align:center"><span style="font-size:11px;color:var(--t3);cursor:pointer;text-decoration:underline" onclick="lockApp()">Lock</span></div>
-    </div>
-  </div>
-</div>
-
-<script>
-// Clear any old service workers / caches from previous versions
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
-}
-if ('caches' in window) {
-  caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
-}
-
-const WORKER = "https://fo-dashboard.deepshah-iitb.workers.dev";
-const API_KEY = "5764ef69-8599-489f-9b5a-34b2af66ba3e";
-const REDIRECT = "https://deepshahiitb.github.io/fo-dashboard/";
-const AUTH_URL = `https://api.upstox.com/v2/login/authorization/dialog?response_type=code&client_id=${API_KEY}&redirect_uri=${encodeURIComponent(REDIRECT)}`;
-
-let S = {profiles:[], positions:[], activeProfile:'overall', lastRefresh:null};
-let PIN = '';
-let editId = null;
-let editInstrKey = null; // instrKey of position being edited, for historical price fetch
-
-function openEdit(id) {
-  const p = S.positions.find(x=>x.id===id); if(!p) return;
-  editId = id;
-  editInstrKey = p.instrKey;
-  document.getElementById('editLabel').textContent = `${p.symbol} · ${p.exchange||'NSE'}`;
-  document.getElementById('e_lots').value = p.lots;
-  document.getElementById('e_lsz').value = p.lotSize;
-  document.getElementById('e_bp').value = p.buyPrice || '';
-  document.getElementById('e_dt').value = p.buyDate || '';
-  document.getElementById('e_nt').value = p.notes || '';
-  openSheet('editSheet');
-}
-
-function onEditDateChange() {
-  const date = document.getElementById('e_dt').value;
-  if (!editInstrKey || !date) return;
-  // Clear price so user sees the fetch
-  document.getElementById('e_bp').value = '';
-  // Reuse the same fetchHistoricalClose but targeting edit form fields
-  fetchHistoricalClose(editInstrKey, date, 'e_bp');
-}
-
-async function saveEdit() {
-  const p = S.positions.find(x=>x.id===editId); if(!p) return;
-  p.lots    = parseInt(document.getElementById('e_lots').value) || p.lots;
-  p.lotSize = parseInt(document.getElementById('e_lsz').value) || p.lotSize;
-  const bpVal = parseFloat(document.getElementById('e_bp').value);
-  if (!isNaN(bpVal) && bpVal > 0) p.buyPrice = bpVal;
-  p.buyDate = document.getElementById('e_dt').value || p.buyDate;
-  p.notes   = document.getElementById('e_nt').value.trim();
-  delete p.margin;       // remove legacy field
-  delete p.marginPerLot; // remove legacy field
-  delete p.marginPct;    // remove legacy field
-  await saveData();
-  render();
-  closeSheet('editSheet');
-  refreshPrices(); // refresh so margin recalculates with new lots/lotSize
-}
-let selInstr = null;
-let srchTimer = null;
-let currentView = 'holdings';
-let sortCol = 'symbol';
-let sortDir = 1; // 1=asc, -1=desc
-
-function sortBy(col) {
-  if (sortCol === col) sortDir *= -1;
-  else { sortCol = col; sortDir = col === 'dayPnL' || col === 'totPnL' ? -1 : 1; }
-  renderMain();
-}
-
-// ═══ CLOUD STORAGE ═══
-async function loadData() {
-  if (!PIN) return;
-  try {
-    const r = await fetch(`${WORKER}/data`, {headers:{'X-PIN':PIN}});
-    if (!r.ok) return;
-    const d = await r.json();
-    S.profiles = d.profiles || [];
-    // Preserve in-memory ltp/prevClose when merging (fresher than cloud)
-    const ltpMap = {};
-    for (const p of S.positions) {
-      if (p.ltp || p.prevClose) ltpMap[p.id] = {ltp:p.ltp, prevClose:p.prevClose, ltpChgPct:p.ltpChgPct};
-    }
-    S.positions = (d.positions || []).map(p => {
-      const saved = ltpMap[p.id];
-      return saved ? {...p, ...saved} : p;
-    });
-    if (!S.activeProfile) S.activeProfile = 'overall';
-    render();
-  } catch(e) { console.error('Load failed', e); }
-}
-
-async function saveData() {
-  if (!PIN) return;
-  showLoading();
-  try {
-    // Strip live price data before saving — prices are always fetched fresh from Upstox
-    // This prevents stale ltp=buyPrice from propagating to other devices
-    const clean = {
-      profiles: S.profiles,
-      positions: S.positions.map(p => {
-        const { ltp, prevClose, ltpChgPct, ltpChg, liveMargin, zerodhaRate, ...rest } = p;
-        return rest;
-      })
-    };
-    await fetch(`${WORKER}/data`, {
-      method:'PUT',
-      headers:{'Content-Type':'application/json','X-PIN':PIN},
-      body:JSON.stringify(clean)
-    });
-  } catch(e) { console.error('Save failed', e); }
-  hideLoading();
-}
-
-function showLoading() { document.getElementById('loading').style.display='block'; }
-function hideLoading() { document.getElementById('loading').style.display='none'; }
-
-// ═══ PIN ═══
-let pinEntry = '';
-function pinKey(k) {
-  if (pinEntry.length >= 4) return;
-  pinEntry += k;
-  for (let i=0;i<4;i++) document.getElementById('d'+i).classList.toggle('filled', i < pinEntry.length);
-  if (pinEntry.length === 4) setTimeout(submitPin, 120);
-}
-function pinDel() {
-  pinEntry = pinEntry.slice(0,-1);
-  for (let i=0;i<4;i++) document.getElementById('d'+i).classList.toggle('filled', i < pinEntry.length);
-  document.getElementById('pinErr').textContent='';
-}
-
-async function submitPin() {
-  try {
-    const r = await fetch(`${WORKER}/ping`, {headers:{'X-PIN':pinEntry}});
-    if (r.ok) { PIN = pinEntry; sessionStorage.setItem('pin',PIN); enterApp(); }
-    else { document.getElementById('pinErr').textContent='Wrong PIN'; pinEntry=''; pinDel(); }
-  } catch(e) {
-    const cached = sessionStorage.getItem('pin');
-    if (cached && pinEntry === cached) { PIN = pinEntry; enterApp(); }
-    else { document.getElementById('pinErr').textContent='Cannot connect'; pinEntry=''; pinDel(); }
-  }
-}
-
-function enterApp() {
-  document.getElementById('gate').style.display='none';
-  document.getElementById('app').style.display='flex';
-  loadData().then(() => {
-    refreshPrices(); // always fetch prices on load (live during market, close after hours)
-    backfillMissingPrices();
-  });
-  checkToken();
-  // During market hours: refresh prices every 60s
-  setInterval(()=>{ if(isMarketOpen()) refreshPrices(); }, 60*1000);
-  // Sync position/profile data from cloud every 2 min
-  setInterval(loadData, 2*60*1000);
-  setInterval(renderMarket, 30*1000);
-}
-
-function lockApp() {
-  PIN=''; sessionStorage.removeItem('pin'); pinEntry=''; pinDel();
-  document.getElementById('gate').style.display='flex';
-  document.getElementById('app').style.display='none';
-  closeSheet('settingsSheet');
-}
-
-// ═══ OWNER OAUTH ═══
-function ownerLogin() { window.location.href = AUTH_URL; }
-async function handleOAuth() {
-  const params = new URLSearchParams(window.location.search);
-  const code = params.get('code');
-  if (!code) return;
-  window.history.replaceState({}, '', window.location.pathname);
-  try {
-    const r = await fetch(`${WORKER}/admin/token`, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({code})
-    });
-    const d = await r.json();
-    if (d.ok) { document.getElementById('tokenBanner').style.display='none'; alert('✓ Token refreshed!'); }
-    else alert('Token exchange failed');
-  } catch(e) { alert('Worker unreachable'); }
-}
-
-async function checkToken() {
-  if (!PIN) return;
-  try {
-    const r = await fetch(`${WORKER}/ping`, {headers:{'X-PIN':PIN}});
-    const d = await r.json();
-    document.getElementById('tokenBanner').style.display = d.hasToken ? 'none' : 'block';
-  } catch(e){}
-}
-
-// ═══ MARKET ═══
-function isMarketOpen() {
-  const ist = new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Kolkata'}));
-  if ([0,6].includes(ist.getDay())) return false;
-  const m = ist.getHours()*60+ist.getMinutes();
-  return m>=555 && m<=930;
-}
-function todayIST() { return new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'}); }
-
-function renderMarket() {
-  const on=isMarketOpen();
-  document.getElementById('mktDot').className='mkt-dot'+(on?' on':'');
-  document.getElementById('mktLbl').textContent=on?'Open':'Closed';
-}
-
-// ═══ PRICES ═══
-async function refreshPrices() {
-  if (!PIN) return;
-  const ico = document.getElementById('refIco');
-  if (ico) ico.style.animation = 'spin 1s linear infinite';
-
-  const openPos = S.positions.filter(p=>!p.closed&&p.instrKey);
-  if (!openPos.length) { if(ico) ico.style.animation=''; return; }
-  const keys    = [...new Set(openPos.map(p=>p.instrKey))].join(',');
-  const symbols = [...new Set(openPos.map(p=>p.symbol))];
-
-  try {
-    // Fetch prices and margin rates in parallel
-    const [priceRes, ratesRes] = await Promise.all([
-      fetch(`${WORKER}/quote?keys=${encodeURIComponent(keys)}`, {headers:{'X-PIN':PIN}}),
-      fetch(`${WORKER}/margins-zerodha`, {
-        method:'POST',
-        headers:{'Content-Type':'application/json','X-PIN':PIN},
-        body: JSON.stringify({ symbols })
-      })
-    ]);
-
-    // Step 1: apply prices
-    if (priceRes.ok) {
-      const data = await priceRes.json();
-      if (data.data) {
-        for (const p of S.positions) {
-          if (p.closed || !p.instrKey) continue;
-          let q = null;
-          for (const [respKey, v] of Object.entries(data.data)) {
-            if (v.instrument_token === p.instrKey) { q = v; break; }
-            const sym = respKey.split(':')[1];
-            if (sym && (sym === p.tradingSym || sym === p.symbol)) { q = v; break; }
-          }
-          if (q) {
-            p.ltp = q.last_price || 0;
-            const netChange = q.net_change || 0;
-            if (netChange !== 0 && p.ltp) {
-              p.prevClose = p.ltp - netChange;
-            } else if (q.ohlc?.close && q.ohlc.close !== p.ltp) {
-              p.prevClose = q.ohlc.close;
-            }
-            if (p.prevClose && p.ltp && p.prevClose !== p.ltp) {
-              p.ltpChgPct = ((p.ltp - p.prevClose) / p.prevClose * 100);
-            }
-          }
-        }
-      }
-    }
-
-    // Step 2: apply margins using the now-updated LTP values
-    if (ratesRes.ok) {
-      const rdata = await ratesRes.json();
-      if (rdata.rates) {
-        for (const p of S.positions) {
-          if (p.closed) continue;
-          const rate = rdata.rates[p.symbol];
-          // Use live ltp if available, fall back to buyPrice for positions not yet priced
-          const ltpForMargin = p.ltp || p.buyPrice || 0;
-          if (rate && ltpForMargin > 0) {
-            p.liveMargin = Math.round(ltpForMargin * p.lots * p.lotSize * rate / 100);
-          }
-        }
-      }
-    }
-
-    S.lastRefresh = new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'});
-    render();
-  } catch(e){ console.error('Refresh failed:', e); }
-  if(ico) ico.style.animation='';
-}
-
-// ═══ SEARCH ═══
-function onSearch(v) {
-  clearTimeout(srchTimer);
-  const el = document.getElementById('srchRes');
-  if (v.length<2) { el.style.display='none'; return; }
-  el.style.display='block'; el.innerHTML='<div class="sri-msg">Searching…</div>';
-  srchTimer = setTimeout(()=>doSearch(v), 380);
-}
-
-async function doSearch(q) {
-  const el = document.getElementById('srchRes');
-  if (!PIN) { el.innerHTML='<div class="sri-msg">Not logged in</div>'; return; }
-  try {
-    // Search both EQ (for LTP) and FO futures (for lot size) in parallel
-    const [eqRes, foRes] = await Promise.all([
-      fetch(`${WORKER}/search?q=${encodeURIComponent(q)}&mode=eq`, {headers:{'X-PIN':PIN}}),
-      fetch(`${WORKER}/search?q=${encodeURIComponent(q)}&mode=fo`, {headers:{'X-PIN':PIN}})
-    ]);
-    if (eqRes.status===503) { el.innerHTML='<div class="sri-msg">Token expired</div>'; return; }
-
-    const eqData = eqRes.ok ? await eqRes.json() : {data:[]};
-    const foData = foRes.ok ? await foRes.json() : {data:[]};
-
-    // Build lot size map AND futures instrument_key map from FUT instruments
-    const lotMap = {};
-    const foKeyMap = {}; // underlying_symbol → futures instrument_key
-    for (const i of (foData.data||[])) {
-      if (i.instrument_type === 'FUT' && i.underlying_symbol && i.lot_size) {
-        if (!lotMap[i.underlying_symbol]) {
-          lotMap[i.underlying_symbol] = i.lot_size;
-          foKeyMap[i.underlying_symbol] = i.instrument_key; // nearest expiry futures key
-        }
-      }
-    }
-
-    const items = (eqData.data||[]).filter(i => i.instrument_type === 'EQ' && i.segment === 'NSE_EQ').slice(0, 20);
-    if (!items.length) { el.innerHTML='<div class="sri-msg">No results</div>'; return; }
-
-    el.innerHTML = items.map(i=>{
-      const lotSize  = lotMap[i.trading_symbol]  || lotMap[i.short_name]  || null;
-      const foKey    = foKeyMap[i.trading_symbol] || foKeyMap[i.short_name] || null;
-      const lotLabel = lotSize ? ` · Lot: ${lotSize}` : '';
-      const enriched = {...i, _lotSize: lotSize, _foInstrKey: foKey};
-      return `<div class="sri" onclick='pickInstr(${JSON.stringify(enriched)})'>
-        <div class="sri-name">${i.trading_symbol||i.name}</div>
-        <div class="sri-meta">${i.name||''} · ${i.exchange||'NSE'}${lotLabel}</div>
-      </div>`;
-    }).join('');
-  } catch(e) { el.innerHTML='<div class="sri-msg">Error</div>'; }
-}
-
-function iType(i) {
-  const t = i.instrument_type||'';
-  if (t==='FUTIDX'||t==='FUTSTK'||t==='FUT') return 'FUT';
-  const sym = i.trading_symbol||'';
-  if (sym.endsWith('CE')) return 'CE';
-  if (sym.endsWith('PE')) return 'PE';
-  return t;
-}
-
-function pickInstr(i) {
-  const lotSize = i._lotSize || 1;
-  selInstr = {
-    symbol:     i.trading_symbol || i.name,
-    tradingSym: i.trading_symbol,
-    instrKey:   i.instrument_key,    // equity key — for LTP
-    foInstrKey: i._foInstrKey || null, // futures key — for SPAN margin
-    lotSize,
-    type:     'EQ',
-    exchange: i.exchange || 'NSE',
-    name:     i.name || i.trading_symbol
-  };
-  document.getElementById('f_srch').value = i.trading_symbol || i.name;
-  document.getElementById('srchRes').style.display = 'none';
-  document.getElementById('selInstr').style.display = 'block';
-  document.getElementById('si_name').textContent = i.trading_symbol || i.name;
-  document.getElementById('f_lsz').value = lotSize;
-  const foNote = i._foInstrKey ? ` · Lot: ${lotSize} · Margin fetches on refresh` : ' · Not in F&O';
-  document.getElementById('si_meta').textContent = `${i.name||''} · ${i.exchange||'NSE'}${foNote}`;
-  updateShares();
-
-  // Auto-fetch historical close if date already set
-  const existingDate = document.getElementById('f_dt').value;
-  if (existingDate) fetchHistoricalClose(selInstr.instrKey, existingDate);
-}
-
-function updateShares() {
-  const lots = parseInt(document.getElementById('f_lots').value) || 0;
-  const lotSize = parseInt(document.getElementById('f_lsz').value) || 0;
-  document.getElementById('f_shares').value = lots * lotSize;
-}
-
-async function fetchMargin_OLD_UNUSED(symbol, expiry) {
-  // Replaced by fetchLotAndMargin
-}
-
-async function backfillMissingPrices() {
-  // Find open positions that have a buyDate but buyPrice is 0 or missing
-  const needsFill = S.positions.filter(p =>
-    !p.closed && p.instrKey && p.buyDate && (!p.buyPrice || p.buyPrice === 0)
-  );
-  if (!needsFill.length) return;
-
-  console.log(`Backfilling buy prices for ${needsFill.length} positions...`);
-  let anyUpdated = false;
-
-  for (const p of needsFill) {
-    try {
-      const r = await fetch(
-        `${WORKER}/history?key=${encodeURIComponent(p.instrKey)}&date=${p.buyDate}`,
-        { headers: {'X-PIN': PIN} }
-      );
-      const d = await r.json();
-      if (d.found && d.close) {
-        p.buyPrice = d.close;
-        p.ltp = p.ltp && p.ltp !== 0 ? p.ltp : d.close;
-        p.prevClose = p.prevClose && p.prevClose !== 0 ? p.prevClose : d.close;
-        console.log(`Backfilled ${p.symbol}: ₹${d.close}`);
-        anyUpdated = true;
-      }
-    } catch(e) {
-      console.warn(`Could not backfill ${p.symbol}:`, e.message);
-    }
-  }
-
-  if (anyUpdated) {
-    await saveData();
-    render();
-  }
-}
-
-async function fetchHistoricalClose(instrKey, date, targetFieldId = 'f_bp') {
-  if (!instrKey || !date || !PIN) return;
-  const bpInp = document.getElementById(targetFieldId);
-  if (!bpInp) return;
-  bpInp.placeholder = 'Fetching close price…';
-  bpInp.style.borderColor = 'var(--ac2)';
-  try {
-    const r = await fetch(`${WORKER}/history?key=${encodeURIComponent(instrKey)}&date=${date}`, {
-      headers: {'X-PIN': PIN}
-    });
-    if (!r.ok) {
-      bpInp.placeholder = `Error ${r.status} — enter manually`;
-      bpInp.style.borderColor = '';
-      return;
-    }
-    const d = await r.json();
-    if (d.found && d.close) {
-      bpInp.value = d.close;
-      const label = d.actualDate && d.actualDate !== date
-        ? `Used ${d.actualDate} (prev trading day)`
-        : `Close on ${date}`;
-      bpInp.placeholder = `${label}: ₹${d.close}`;
-    } else {
-      bpInp.placeholder = 'No trading data for this date — enter manually';
-    }
-  } catch(e) {
-    bpInp.placeholder = `Fetch error — enter manually`;
-    console.error('fetchHistoricalClose failed:', e);
-  }
-  bpInp.style.borderColor = '';
-}
-
-function onBuyDateChange() {
-  const date = document.getElementById('f_dt').value;
-  if (!selInstr || !date) return;
-  // Clear current price so user sees the fetch happening
-  document.getElementById('f_bp').value = '';
-  fetchHistoricalClose(selInstr.instrKey, date);
-}
-
-function clearInstr() {
-  selInstr=null;
-  document.getElementById('f_srch').value='';
-  document.getElementById('f_lsz').value='';
-  document.getElementById('f_shares').value='';
-  document.getElementById('selInstr').style.display='none';
-}
-
-// ═══ CALCS ═══
-const ltp    = p => p.closed?(p.sellPrice||0):(p.ltp||p.buyPrice||0);
-const val    = p => ltp(p)*p.lots*p.lotSize;
-// Margin: live from Upstox /charges/margin API only.
-// Shows — until first price refresh after app open.
-const margin = p => (p.closed || !p.liveMargin) ? 0 : p.liveMargin;
-const totPnL = p => (ltp(p)-p.buyPrice)*p.lots*p.lotSize;
-// Day P&L: uses net_change-based prevClose
-const dayPnL = p => {
-  if (p.closed) return 0;
-  if (!p.prevClose || !p.ltp) return 0;
-  if (p.prevClose === p.buyPrice && p.ltp === p.buyPrice) return 0; // never refreshed
-  return (p.ltp - p.prevClose) * p.lots * p.lotSize;
-};
-
-function smry(pos) {
-  const op=pos.filter(p=>!p.closed);
-  return {
-    holdVal: op.reduce((s,p)=>s+val(p),0),
-    margin:  op.reduce((s,p)=>s+margin(p),0),
-    dayPnL:  op.reduce((s,p)=>s+dayPnL(p),0),
-    totPnL:  pos.reduce((s,p)=>s+totPnL(p),0),
-    open:    op.length,
-    closed:  pos.filter(p=>p.closed).length
-  };
-}
-
-// ═══ FORMAT ═══
-const fi = (n,d=0) => isNaN(n)?'—':new Intl.NumberFormat('en-IN',{minimumFractionDigits:d,maximumFractionDigits:d}).format(n);
-const fp = n => (n>=0?'+':'')+fi(n,0);
-const pc = n => n>0?'pos':n<0?'neg':'neu';
-const fd = d => {
-  if (!d) return '—';
-  // Parse YYYY-MM-DD directly to avoid UTC→local timezone shift
-  const [y,m,day] = d.split('-').map(Number);
-  return new Date(y, m-1, day).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'2-digit'});
-};
-
-// ═══ RENDER ═══
-function render() {
-  renderMarket(); renderTabs();
-  if (currentView === 'pnl') {
-    document.getElementById('sum').style.display = 'none';
-    renderPnL();
-  } else {
-    document.getElementById('sum').style.display = '';
-    renderSum();
-    renderMain();
-  }
-  document.getElementById('lastUpd').textContent = S.lastRefresh?`Prices as of ${S.lastRefresh} IST`:'';
-}
-
-function renderPnL() {
-  let pos = S.positions.filter(p => p.closed);
-  if (S.activeProfile !== 'overall') pos = pos.filter(p => p.profileId === S.activeProfile);
-
-  // Sort newest sell first
-  pos.sort((a,b) => (b.sellDate||'').localeCompare(a.sellDate||''));
-
-  const totalPnL = pos.reduce((s,p) => s + totPnL(p), 0);
-  const winners = pos.filter(p => totPnL(p) > 0).length;
-  const losers = pos.filter(p => totPnL(p) < 0).length;
-
-  let html = `<div class="pnl-log">`;
-  html += `<div class="pnl-total-card">
-    <div class="pnl-stat"><div class="pnl-stat-l">Total P&L</div><div class="pnl-stat-v ${pc(totalPnL)}">₹${fp(totalPnL)}</div></div>
-    <div class="pnl-stat"><div class="pnl-stat-l">Winners</div><div class="pnl-stat-v pos">${winners}</div></div>
-    <div class="pnl-stat"><div class="pnl-stat-l">Losers</div><div class="pnl-stat-v neg">${losers}</div></div>
-  </div>`;
-
-  if (!pos.length) {
-    html += `<div class="empty">No closed trades yet.</div></div>`;
-    document.getElementById('main').innerHTML = html;
-    return;
-  }
-
-  for (const p of pos) {
-    const tp = totPnL(p);
-    const days = p.buyDate && p.sellDate ? Math.round((new Date(p.sellDate) - new Date(p.buyDate)) / (1000*60*60*24)) : 0;
-    const shares = p.lots * p.lotSize;
-    const profName = S.activeProfile === 'overall' ? (S.profiles.find(x=>x.id===p.profileId)?.name||'') : '';
-    const returnPct = p.buyPrice ? ((p.sellPrice - p.buyPrice) / p.buyPrice * 100) : 0;
-    html += `<div class="pnl-card">
-      <div class="pnl-row1">
-        <div>
-          <div class="pnl-symbol">${p.symbol}</div>
-          <div style="font-size:9px;color:var(--t3);margin-top:1px">${profName?profName+' · ':''}${p.lots} lot${p.lots>1?'s':''} × ${p.lotSize} = ${shares} shares</div>
-        </div>
-        <div style="text-align:right">
-          <div class="pnl-val ${pc(tp)}">₹${fp(tp)}</div>
-          <div style="font-size:10px;margin-top:1px" class="${pc(tp)}">${returnPct>=0?'+':''}${returnPct.toFixed(2)}%</div>
-        </div>
-      </div>
-      <div class="pnl-row2">
-        <span>Bought <b>${fd(p.buyDate)} @ ₹${fi(p.buyPrice,2)}</b></span>
-        <span>Sold <b>${fd(p.sellDate)} @ ₹${fi(p.sellPrice,2)}</b></span>
-        <span>Held <b>${days} day${days!==1?'s':''}</b></span>
-        ${p.notes?`<span style="grid-column:1/-1">Notes: <b>${p.notes}</b></span>`:''}
-      </div>
-    </div>`;
-  }
-  html += `</div>`;
-  document.getElementById('main').innerHTML = html;
-}
-
-function renderTabs() {
-  const t = document.getElementById('ptabs');
-  t.innerHTML = `<button class="ptab ${S.activeProfile==='overall'?'active':''}" onclick="setProf('overall')">Overall</button>`
-    + S.profiles.map(p=>`<button class="ptab ${S.activeProfile===p.id?'active':''}" onclick="setProf('${p.id}')">${p.name}</button>`).join('')
-    + `<button class="ptab add" onclick="openAddProf()">+ Add</button>`;
-}
-
-function renderSum() {
-  let pos=S.positions;
-  if (S.activeProfile!=='overall') pos=pos.filter(p=>p.profileId===S.activeProfile);
-  const s=smry(pos);
-  document.getElementById('sum').innerHTML=`
-    <div class="sc"><div class="sc-l">Holding Value</div><div class="sc-v neu">₹${fi(s.holdVal)}</div><div class="sc-s">${s.open} open</div></div>
-    <div class="sc"><div class="sc-l">Margin Blocked</div><div class="sc-v neu">₹${fi(s.margin)}</div><div class="sc-s">across positions</div></div>
-    <div class="sc"><div class="sc-l">Day P&L</div><div class="sc-v ${pc(s.dayPnL)}">₹${fp(s.dayPnL)}</div><div class="sc-s">today</div></div>
-    <div class="sc"><div class="sc-l">Total P&L</div><div class="sc-v ${pc(s.totPnL)}">₹${fp(s.totPnL)}</div><div class="sc-s">${s.closed} closed</div></div>`;
-}
-
-function renderMain() {
-  if (!S.profiles.length) {
-    document.getElementById('main').innerHTML=`<div class="empty">No profiles yet.<br>Tap <strong>+ Add</strong> or <strong>⚙</strong> to create one.</div>`;
-    return;
-  }
-  let pos = S.positions.filter(p=>!p.closed);
-  if (S.activeProfile!=='overall') pos = pos.filter(p=>p.profileId===S.activeProfile);
-
-  // Sort
-  pos = [...pos].sort((a,b) => {
-    let av, bv;
-    switch(sortCol) {
-      case 'symbol':   av=a.symbol;          bv=b.symbol; break;
-      case 'lots':     av=a.lots*a.lotSize;  bv=b.lots*b.lotSize; break;
-      case 'buy':      av=a.buyPrice;        bv=b.buyPrice; break;
-      case 'ltp':      av=a.ltp||a.buyPrice; bv=b.ltp||b.buyPrice; break;
-      case 'val':      av=val(a);            bv=val(b); break;
-      case 'margin':   av=a.margin||0;       bv=b.margin||0; break;
-      case 'dayPnL':   av=dayPnL(a);         bv=dayPnL(b); break;
-      case 'totPnL':   av=totPnL(a);         bv=totPnL(b); break;
-      case 'date':     av=a.buyDate||'';     bv=b.buyDate||''; break;
-      default:         av=a.symbol;          bv=b.symbol;
-    }
-    if (typeof av === 'string') return av.localeCompare(bv) * sortDir;
-    return (av - bv) * sortDir;
-  });
-
-  let html = '';
-
-  if (S.activeProfile === 'overall') {
-    // Group by profile
-    let any = false;
-    for (const pr of S.profiles) {
-      const pp = pos.filter(p=>p.profileId===pr.id);
-      if (!pp.length) continue;
-      any = true;
-      html += mkTable(pr.name, pp, false);
-    }
-    if (!any) html = `<div class="empty">No open positions.<br>Select a profile above to add positions.</div>`;
-  } else {
-    html = mkTable('Open Positions', pos, true);
-  }
-  document.getElementById('main').innerHTML = html;
-}
-
-function thSort(label, col) {
-  const active = sortCol === col;
-  const arrow = active ? (sortDir === 1 ? '▲' : '▼') : '▲';
-  return `<th onclick="sortBy('${col}')" class="${active?'sorted':''}">${label}<span class="arr">${arrow}</span></th>`;
-}
-
-function mkTable(title, positions, showAddBtn) {
-  const addBtn = showAddBtn ? `<button class="btn-add" onclick="openAddPos()">+ New Position</button>` : '';
-  let html = `<div class="tbl-sec"><span>${title} (${positions.length})</span>${addBtn}</div>`;
-
-  if (!positions.length) {
-    return html + `<div style="padding:12px 14px;font-size:12px;color:var(--t3)">No positions yet.</div>`;
-  }
-
-  html += `<div style="overflow:hidden;border-radius:8px;margin:0 14px 14px;border:1px solid rgba(255,255,255,.07)"><div class="tbl-wrap" style="padding:0;margin:0;border-radius:0"><table class="tbl"><thead><tr>
-    ${thSort('Symbol','symbol')}
-    ${thSort('Buy','buy')}
-    ${thSort('LTP','ltp')}
-    ${thSort('Day P&L','dayPnL')}
-    ${thSort('Total P&L','totPnL')}
-    ${thSort('Lots','lots')}
-    ${thSort('Value','val')}
-    ${thSort('Margin','margin')}
-    <th>Bought</th>
-    <th>Actions</th>
-  </tr></thead><tbody>`;
-
-  for (const p of positions) {
-    const l = p.ltp || p.buyPrice || 0;
-    const dp = dayPnL(p);
-    const tp = totPnL(p);
-    const v = val(p);
-    const pn = S.activeProfile==='overall' ? (S.profiles.find(x=>x.id===p.profileId)?.name||'') : '';
-    const chgPct = p.ltpChgPct ? `<br><span style="font-size:9px">${p.ltpChgPct>=0?'+':''}${p.ltpChgPct.toFixed(1)}%</span>` : '';
-    html += `<tr>
-      <td>
-        <div class="tbl-sym">${p.symbol}</div>
-        <div class="tbl-meta">${pn||p.exchange||'NSE'}</div>
-      </td>
-      <td>₹${fi(p.buyPrice,2)}</td>
-      <td class="${pc(dp)}">₹${fi(l,2)}${chgPct}</td>
-      <td class="${pc(dp)}">${dp!==0?'₹'+fp(dp):'—'}</td>
-      <td class="${pc(tp)}">₹${fp(tp)}</td>
-      <td>${p.lots}×${fi(p.lotSize)}<br><span style="font-size:9px;color:var(--t3)">${fi(p.lots*p.lotSize)} sh</span></td>
-      <td>₹${fi(v)}</td>
-      <td>${margin(p)>0?'₹'+fi(margin(p)):'—'}</td>
-      <td style="font-size:11px;color:var(--t2)">${fd(p.buyDate)}</td>
-      <td><div style="display:flex;gap:4px;justify-content:flex-end">
-        <button class="bsm" onclick="openEdit('${p.id}')" style="color:var(--ac2);border-color:rgba(162,155,254,.3)">Edit</button>
-        <button class="bsm sell" onclick="openSell('${p.id}')">Sell</button>
-        <button class="bsm del" onclick="delPos('${p.id}')">Del</button>
-      </div></td>
-    </tr>`;
-  }
-  html += `</tbody></table></div></div>`;
-  return html;
-}
-
-
-// ═══ ACTIONS ═══
-function setProf(id) { S.activeProfile=id; render(); }
-
-function openAddProf() {
-  const name = prompt('Profile name:');
-  if (!name) return;
-  S.profiles.push({id:'p'+Date.now(),name});
-  saveData(); render();
-}
-
-function openAddPos() {
-  if (S.activeProfile === 'overall') { alert('Select a profile first'); return; }
-  document.getElementById('f_prof').innerHTML=S.profiles.map(p=>`<option value="${p.id}" ${p.id===S.activeProfile?'selected':''}>${p.name}</option>`).join('');
-  document.getElementById('f_dt').value=todayIST();
-  clearInstr();
-  ['f_bp','f_nt'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('f_lots').value = '1';
-  document.getElementById('f_shares').value = '';
-  openSheet('addPosSheet');
-}
-
-async function savePos() {
-  if (!selInstr) { alert('Select a stock first'); return; }
-  const lots    = parseInt(document.getElementById('f_lots').value) || 1;
-  const bp      = parseFloat(document.getElementById('f_bp').value) || 0;
-  const lotSize = selInstr.lotSize || 1;
-  S.positions.push({
-    id: 'pos'+Date.now(),
-    profileId: document.getElementById('f_prof').value,
-    symbol:    selInstr.symbol,
-    tradingSym: selInstr.tradingSym,
-    instrKey:   selInstr.instrKey,    // equity key for LTP
-    foInstrKey: selInstr.foInstrKey || null, // futures key for margin
-    type:     'EQ',
-    exchange: selInstr.exchange,
-    lots,
-    lotSize,
-    buyPrice: bp,
-    buyDate:  document.getElementById('f_dt').value,
-    notes:    document.getElementById('f_nt').value.trim(),
-    closed:   false
-  });
-  await saveData();
-  render();
-  closeSheet('addPosSheet');
-  refreshPrices(); // fetch LTP + margin for new position immediately
-}
-
-function openSell(id) {
-  const p=S.positions.find(x=>x.id===id); if(!p) return;
-  sellId=id;
-  document.getElementById('s_lots').value = p.lots;
-  document.getElementById('s_lots').max = p.lots;
-  document.getElementById('s_shares').value = p.lots * p.lotSize;
-  document.getElementById('s_px').value = p.ltp || p.buyPrice || 0;
-  document.getElementById('s_dt').value = todayIST();
-  document.getElementById('sellInfo').innerHTML = `
-    <div class="sell-row"><span>Symbol</span><span>${p.symbol}</span></div>
-    <div class="sell-row"><span>Open Lots</span><span>${p.lots} × ${p.lotSize} = ${p.lots*p.lotSize} shares</span></div>
-    <div class="sell-row"><span>Buy Price</span><span>₹${fi(p.buyPrice,2)}</span></div>
-    <div class="sell-row"><span>Current LTP</span><span>₹${fi(p.ltp||p.buyPrice,2)}</span></div>`;
-  openSheet('sellSheet');
-}
-
-function updateSellShares() {
-  const p = S.positions.find(x=>x.id===sellId); if(!p) return;
-  let lots = parseInt(document.getElementById('s_lots').value) || 1;
-  if (lots > p.lots) { lots = p.lots; document.getElementById('s_lots').value = p.lots; }
-  if (lots < 1) { lots = 1; document.getElementById('s_lots').value = 1; }
-  document.getElementById('s_shares').value = lots * p.lotSize;
-}
-
-async function confirmSell() {
-  const p = S.positions.find(x=>x.id===sellId); if(!p) return;
-  const sellLots = parseInt(document.getElementById('s_lots').value) || p.lots;
-  const sellPrice = parseFloat(document.getElementById('s_px').value) || 0;
-  const sellDate = document.getElementById('s_dt').value;
-
-  if (sellLots >= p.lots) {
-    // Full close
-    p.sellPrice = sellPrice;
-    p.sellDate = sellDate;
-    p.closed = true;
-  } else {
-    // Partial close: split into sold + remaining
-    const closedPortion = {
-      ...p,
-      id: 'pos' + Date.now(),
-      lots: sellLots,
-      margin: sellLots * (p.marginPerLot || 0),
-      sellPrice,
-      sellDate,
-      closed: true
-    };
-    p.lots = p.lots - sellLots;
-    p.margin = p.lots * (p.marginPerLot || 0);
-    S.positions.push(closedPortion);
-  }
-  await saveData();
-  render();
-  closeSheet('sellSheet');
-}
-
-async function delPos(id) {
-  if (!confirm('Delete?')) return;
-  S.positions=S.positions.filter(p=>p.id!==id);
-  await saveData();
-  render();
-}
-
-async function addProf() {
-  const name=document.getElementById('newProf').value.trim(); if(!name) return;
-  S.profiles.push({id:'p'+Date.now(),name});
-  document.getElementById('newProf').value='';
-  await saveData();
-  renderProfList();
-  render();
-}
-
-async function delProf(id) {
-  if (!confirm('Remove profile?')) return;
-  S.profiles=S.profiles.filter(p=>p.id!==id);
-  if (S.activeProfile===id) S.activeProfile='overall';
-  await saveData();
-  renderProfList();
-  render();
-}
-
-async function renameProf(id) {
-  const p = S.profiles.find(x=>x.id===id); if(!p) return;
-  const newName = prompt('New name for profile:', p.name);
-  if (!newName || !newName.trim() || newName.trim()===p.name) return;
-  p.name = newName.trim();
-  await saveData();
-  renderProfList();
-  render();
-}
-
-function renderProfList() {
-  document.getElementById('profList').innerHTML=S.profiles.map(p=>
-    `<div class="pm-row">
-      <span>${p.name}</span>
-      <div style="display:flex;gap:5px">
-        <button class="bsm" onclick="renameProf('${p.id}')" style="color:var(--ac2);border-color:rgba(162,155,254,.3)">Rename</button>
-        <button class="bsm sell" onclick="delProf('${p.id}')">Remove</button>
-      </div>
-    </div>`
-  ).join('');
-}
-
-function exportData() {
-  const b=new Blob([JSON.stringify({profiles:S.profiles,positions:S.positions},null,2)],{type:'application/json'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(b);
-  a.download=`fo_${todayIST()}.json`; a.click();
-}
-
-function importClick() { document.getElementById('impFile').click(); }
-async function importData(e) {
-  const f=e.target.files[0]; if(!f) return;
-  const r=new FileReader();
-  r.onload=async ev=>{
-    try {
-      const d=JSON.parse(ev.target.result);
-      if(d.profiles&&d.positions){
-        S.profiles=d.profiles;
-        S.positions=d.positions;
-        await saveData();
-        render();
-        closeSheet('settingsSheet');
-      } else alert('Invalid file');
-    } catch{alert('Parse failed');}
-  };
-  r.readAsText(f);
-}
-
-// ═══ SHEETS ═══
-function openSheet(id) {
-  document.getElementById(id).classList.add('open');
-  if (id==='settingsSheet') renderProfList();
-}
-function closeSheet(id) { document.getElementById(id).classList.remove('open'); }
-document.querySelectorAll('.overlay').forEach(el=>el.addEventListener('click',e=>{if(e.target===el)closeSheet(el.id);}));
-document.addEventListener('click',e=>{if(!e.target.closest('.srch-wrap'))document.getElementById('srchRes').style.display='none';});
-
-// Hard reload the page — forces fresh HTML from GitHub, clears all caches
-function hardReload() {
-  window.location.reload(true);
-}
-
-// ═══ INIT ═══
-async function init() {
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('code')) await handleOAuth();
-
-  const cached = sessionStorage.getItem('pin');
-  if (cached) {
-    try {
-      const r = await fetch(`${WORKER}/ping`, {headers:{'X-PIN':cached}});
-      if (r.ok) { PIN=cached; enterApp(); return; }
-    } catch(e) { PIN=cached; enterApp(); return; }
-  }
-  document.getElementById('gate').style.display='flex';
-}
-
-init();
-</script>
-</body>
-</html>
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © ankitpmehta
+
+
+//@version=5
+indicator("Vol Shocker Final Algo Copy", overlay=false)
+
+
+// ==========================================
+// --- INPUTS ---
+// ==========================================
+lookback_period = input.int(1500, title="Lookback Period (Bars)", minval=1)
+noOfCandlesThreshold = input.int(30, "How many candles allowed to be above this number?")
+
+
+// Separate factors for each logic so you can tune them independently
+factor_1 = input.float(10.0, title="Factor 1 (Smart SMA)", minval=0.1, step=0.1)
+factor_2 = input.float(5.0, title="Factor 2 (Standard SMA)", minval=0.1, step=0.1)
+
+
+// Strategy Inputs
+volFactor = input.float(5.0, "Volume Factor")
+thresholdValue = input.float(4.0, "Value Threshold (in Crores INR)")
+RPT = input.float(300.0, "Risk Per Trade (RPT) in INR:")
+
+
+// ==========================================
+// --- SHARED TIME VARIABLES ---
+// ==========================================
+is_new_day = ta.change(time("D"))
+is_market_close = (hour == 15 and minute == 29)
+
+
+// Both logics use a 20-period SMA, so we calculate it once globally
+standard_sma_20 = ta.sma(volume, 20)
+
+
+// ==========================================
+// --- LOGIC 1: Smart SMA (The "Ramp Up") ---
+// ==========================================
+var int bar_count_1 = 0
+var float daily_vol_sum_1 = 0.0
+var float daily_max_sma_1 = 0.0
+float current_smart_sma_1 = 0.0
+
+
+if is_new_day
+    bar_count_1 := 1
+    daily_vol_sum_1 := volume
+    current_smart_sma_1 := volume
+    daily_max_sma_1 := current_smart_sma_1
+else
+    bar_count_1 += 1
+    if bar_count_1 <= 20
+        daily_vol_sum_1 += volume
+        current_smart_sma_1 := daily_vol_sum_1 / bar_count_1
+    else
+        current_smart_sma_1 := standard_sma_20
+
+
+    daily_max_sma_1 := math.max(daily_max_sma_1, current_smart_sma_1)
+
+
+vol_threshold_1 = daily_max_sma_1 / factor_1
+
+
+// ==========================================
+// --- LOGIC 2: Standard SMA ---
+// ==========================================
+var float daily_max_sma_2 = 0.0
+
+
+if is_new_day
+    daily_max_sma_2 := standard_sma_20
+else
+    daily_max_sma_2 := math.max(daily_max_sma_2, standard_sma_20)
+
+
+vol_threshold_2 = daily_max_sma_2 / factor_2
+
+
+// ==========================================
+// --- SHARED SNAPSHOT ARRAY ---
+// ==========================================
+var float[] reference_volumes = array.new_float(0)
+
+
+if is_market_close
+    array.clear(reference_volumes)
+    for i = 0 to lookback_period - 1
+        array.push(reference_volumes, volume[i])
+
+
+// ==========================================
+// --- DUAL LIVE COUNTING ---
+// ==========================================
+int count_above_threshold_1 = 0
+int count_above_threshold_2 = 0
+
+
+if array.size(reference_volumes) > 0
+    for i = 0 to array.size(reference_volumes) - 1
+        stored_vol = array.get(reference_volumes, i)
+        if stored_vol > vol_threshold_1
+            count_above_threshold_1 += 1
+        if stored_vol > vol_threshold_2
+            count_above_threshold_2 += 1
+
+
+// ==========================================
+// --- SIGNALS & STATE SETUP ---
+// ==========================================
+float currentVolMA = ta.sma(volume, 20)
+atr14 = ta.atr(14)
+
+
+var int signal = 0
+var float volumeSignal = 0.0
+var float valueSignal = 0.0
+var float entryPrice = 0.0
+var float newATR = 0.0
+var float finalSignal = 0.0
+var int dummy = 0
+
+
+prevDayClose = request.security(syminfo.tickerid, "D", close[1], lookahead=barmerge.lookahead_on)
+prevDayHigh = request.security(syminfo.tickerid, "D", high[1], lookahead=barmerge.lookahead_on)
+var float prevDayLastVolMA = na
+
+
+// Reset daily states
+if is_new_day > 0
+    prevDayLastVolMA := currentVolMA[1]
+    volumeSignal := 0.0
+    valueSignal := 0.0
+    entryPrice := 0.0
+    newATR := na
+    finalSignal := 0.0
+    signal := 0
+    dummy := 0
+
+
+valuePerCandle = volume * hlc3 / 10000000
+
+
+volumeCondition = currentVolMA > (volFactor * prevDayLastVolMA)
+valueCondition = valuePerCandle > thresholdValue
+
+
+if volumeCondition
+    volumeSignal := 1
+if valueCondition
+    valueSignal := 1
+
+
+if volumeSignal * valueSignal == 1
+    signal := 1
+
+
+// Calculations for entryPrice
+if signal == 0 and high > entryPrice
+    entryPrice := high
+
+
+if signal[1] + signal == 1 and high > entryPrice
+    entryPrice := high
+
+
+if signal == 1 and dummy == 0 and (count_above_threshold_1 < noOfCandlesThreshold or count_above_threshold_2 < noOfCandlesThreshold) and entryPrice > prevDayHigh and entryPrice < (prevDayClose * 1.12)
+    finalSignal := 1
+
+if high > entryPrice and signal == 1 and dummy == 0
+    dummy := 1
+    // 1. Lock the ATR from the previous closed candle
+    newATR := math.round(atr14[1], 2)
+
+// ==========================================
+// --- THE EXECUTION BLOCK (ALERTS) ---
+// ==========================================
+if finalSignal == 1 and (dummy[1]+dummy) == 1
+     
+    // 2. Generate the exact string variables
+    entryPrice1 = str.tostring(entryPrice)
+    qty1 = str.tostring(math.floor(RPT / newATR))
+    stopLoss1 = str.tostring(entryPrice - newATR)
+    target1 = str.tostring(entryPrice + (4 * newATR))
+    
+    // 3. Construct the JSON string (Fixed "1symbol" typo here)
+    string json_msg = '{"symbol": "' + syminfo.ticker + '", "action": "BUY", "qty": ' + qty1 + ', "entry": ' + entryPrice1 + ', "sl": ' + stopLoss1 + ', "target": ' + target1 + '}'
+    
+    // 4. Fire the alert to TradingView (Make sure you set your TV alert to "Any alert() function call" and message as {{alert_message}})
+    alert(json_msg, alert.freq_once_per_bar)
+    
+// ==========================================
+// --- UI DASHBOARD TABLE ---
+// ==========================================
+var table info_table = table.new(position=position.top_right, columns=4, rows=1, border_width=1)
+table.cell(info_table, 0, 0, "Entry: " + str.tostring(entryPrice), text_color=color.white, bgcolor=color.black, text_size=size.auto)
+table.cell(info_table, 1, 0, "Qty: " + str.tostring(math.floor(RPT / newATR)), text_color=color.white, bgcolor=color.black, text_size=size.auto)
+table.cell(info_table, 2, 0, "SL: " + str.tostring(entryPrice - newATR), text_color=color.white, bgcolor=color.black, text_size=size.auto)
+table.cell(info_table, 3, 0, "Target: " + str.tostring(entryPrice + (4 * newATR)), text_color=color.white, bgcolor=color.black, text_size=size.auto)
+
+plot(finalSignal, "Final Signal", color=color.green)
