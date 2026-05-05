@@ -57,9 +57,9 @@ html,body{height:100%;background:var(--bg);color:var(--t);font-family:-apple-sys
 /* SUMMARY */
 .sum{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:10px 14px}
 .sc{background:var(--bg2);border:1px solid var(--b);border-radius:var(--r);padding:10px 12px}
-.sc-l{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px}
+.sc-l{font-size:9px;color:#fff;text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px;opacity:.7}
 .sc-v{font-size:18px;font-weight:700;letter-spacing:-.5px}
-.sc-s{font-size:10px;color:var(--t2);margin-top:3px}
+.sc-s{font-size:10px;color:#fff;margin-top:3px;opacity:.5}
 .pos{color:var(--gn)}.neg{color:var(--rd)}.neu{color:var(--t)}
 
 /* SECTIONS */
@@ -166,17 +166,18 @@ select.finp option{background:var(--bg3)}
 /* Sortable table */
 .tbl-wrap{overflow-x:auto;padding:0 14px 14px;-webkit-overflow-scrolling:touch;position:relative}
 .tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:12px;min-width:700px}
-.tbl thead th{padding:8px 10px;text-align:right;font-size:9px;font-weight:700;color:var(--ac2);text-transform:uppercase;letter-spacing:.5px;cursor:pointer;white-space:nowrap;user-select:none;border-bottom:2px solid rgba(108,92,231,.3);background:#18181f;position:sticky;top:0;z-index:2}
+.tbl thead th{padding:8px 10px;text-align:right;font-size:9px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.5px;cursor:pointer;white-space:nowrap;user-select:none;border-bottom:2px solid rgba(255,255,255,.15);background:#18181f;position:sticky;top:0;z-index:2}
 .tbl thead th:first-child{text-align:left;position:sticky;left:0;top:0;z-index:10;background:#18181f;min-width:110px;width:110px;border-right:1px solid rgba(255,255,255,.15)}
-.tbl th.sorted{color:#fff;background:rgba(108,92,231,.25)}
-.tbl th .arr{margin-left:2px;font-size:8px}
+.tbl th.sorted{color:#fff;background:rgba(108,92,231,.3)}
+.tbl th .arr{margin-left:2px;font-size:8px;opacity:.6}
+.tbl th.sorted .arr{opacity:1}
 .tbl tbody td{padding:8px 10px;text-align:right;white-space:nowrap;background:#111118;border-bottom:1px solid rgba(255,255,255,.07)}
 .tbl tbody td:first-child{text-align:left;position:sticky;left:0;z-index:5;background:#111118;min-width:110px;width:110px;border-right:1px solid rgba(255,255,255,.15)}
 .tbl tbody tr:hover td{background:#18181f}
 .tbl tbody tr:hover td:first-child{background:#18181f}
 .tbl-sym{font-weight:700;font-size:12px}
 .tbl-meta{font-size:9px;color:var(--t3);margin-top:1px}
-.tbl-sec{padding:8px 14px 4px;font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.7px;display:flex;justify-content:space-between;align-items:center;margin-top:4px}
+.tbl-sec{padding:8px 14px 4px;font-size:10px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.7px;display:flex;justify-content:space-between;align-items:center;margin-top:4px}
 
 .loading{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--bg2);border:1px solid var(--b2);border-radius:var(--r);padding:16px 24px;font-size:13px;color:var(--t2);z-index:300}
 </style>
@@ -415,19 +416,39 @@ function setView(v) {
 }
 
 function sortBy(col) {
+  // Save scroll position of active tbl-wrap before re-render
+  const wrap = document.querySelector('.tbl-wrap');
+  const scrollLeft = wrap ? wrap.scrollLeft : 0;
   if (sortCol === col) sortDir *= -1;
   else { sortCol = col; sortDir = col === 'dayPnL' || col === 'totPnL' ? -1 : 1; }
   renderMain();
+  // Restore scroll position after render
+  requestAnimationFrame(() => {
+    const newWrap = document.querySelector('.tbl-wrap');
+    if (newWrap) newWrap.scrollLeft = scrollLeft;
+  });
 }
 function sumSortBy(col) {
+  const wraps = [...document.querySelectorAll('.tbl-wrap')];
+  const scrolls = wraps.map(w => w.scrollLeft);
   if (sumSortCol === col) sumSortDir *= -1;
   else { sumSortCol = col; sumSortDir = col === 'dayPnL' || col === 'totPnL' ? -1 : 1; }
   renderSummary();
+  requestAnimationFrame(() => {
+    const newWraps = [...document.querySelectorAll('.tbl-wrap')];
+    newWraps.forEach((w,i) => { if(scrolls[i]) w.scrollLeft = scrolls[i]; });
+  });
 }
 function symSortBy(col) {
+  const wraps = [...document.querySelectorAll('.tbl-wrap')];
+  const scrolls = wraps.map(w => w.scrollLeft);
   if (symSortCol === col) symSortDir *= -1;
   else { symSortCol = col; symSortDir = col === 'dayPnL' || col === 'totPnL' ? -1 : 1; }
   renderSummary();
+  requestAnimationFrame(() => {
+    const newWraps = [...document.querySelectorAll('.tbl-wrap')];
+    newWraps.forEach((w,i) => { if(scrolls[i]) w.scrollLeft = scrolls[i]; });
+  });
 }
 
 // ═══ CLOUD STORAGE ═══
@@ -971,7 +992,7 @@ function renderSummary() {
   });
   const all = smry(S.positions);
 
-  let html = `<div style="padding:0 14px 6px;font-size:10px;font-weight:700;color:var(--ac2);text-transform:uppercase;letter-spacing:.7px;margin-top:10px">By Profile</div>`;
+  let html = `<div style="padding:0 14px 6px;font-size:10px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.7px;margin-top:10px">By Profile</div>`;
   html += `<div style="overflow:hidden;border-radius:8px;margin:0 14px 18px;border:1px solid rgba(255,255,255,.07)"><div class="tbl-wrap" style="padding:0;margin:0"><table class="tbl" style="min-width:480px"><thead><tr>
     ${thL('Profile','name','sumSortBy',sumSortCol,sumSortDir)}
     ${th('Holding Value','holdVal','sumSortBy',sumSortCol,sumSortDir)}
@@ -1038,27 +1059,37 @@ function renderSummary() {
   symRows = [...symRows].sort((a,b)=>{
     let av, bv;
     switch(symSortCol) {
-      case 'symbol':  av=a.symbol;    bv=b.symbol; break;
-      case 'buy':     av=a.wAvgBuy;   bv=b.wAvgBuy; break;
-      case 'ltp':     av=a.ltp;       bv=b.ltp; break;
-      case 'dayPnL':  av=a.dayPnL;    bv=b.dayPnL; break;
-      case 'totPnL':  av=a.totPnL;    bv=b.totPnL; break;
-      case 'lots':    av=a.totalShares; bv=b.totalShares; break;
-      case 'val':     av=a.holdVal;   bv=b.holdVal; break;
+      case 'symbol':  av=a.symbol;     bv=b.symbol; break;
+      case 'buy':     av=a.wAvgBuy;    bv=b.wAvgBuy; break;
+      case 'ltp':     av=a.ltp;        bv=b.ltp; break;
+      case 'dayPnL':  av=a.dayPnL;     bv=b.dayPnL; break;
+      case 'totPnL':  av=a.totPnL;     bv=b.totPnL; break;
+      case 'lots':    av=a.lots;       bv=b.lots; break;  // sort by lots, not shares
+      case 'val':     av=a.holdVal;    bv=b.holdVal; break;
       case 'margin':  av=a.liveMargin; bv=b.liveMargin; break;
       default: av=a.symbol; bv=b.symbol;
     }
     return typeof av==='string' ? av.localeCompare(bv)*symSortDir : (av-bv)*symSortDir;
   });
 
-  html += `<div style="padding:0 14px 6px;font-size:10px;font-weight:700;color:var(--ac2);text-transform:uppercase;letter-spacing:.7px">By Symbol (Consolidated)</div>`;
+  // Totals for symbol table
+  const symTot = symRows.reduce((t,r) => ({
+    holdVal:    t.holdVal    + r.holdVal,
+    dayPnL:     t.dayPnL     + r.dayPnL,
+    totPnL:     t.totPnL     + r.totPnL,
+    liveMargin: t.liveMargin + r.liveMargin,
+    lots:       t.lots       + r.lots,
+    totalShares:t.totalShares+ r.totalShares,
+  }), {holdVal:0,dayPnL:0,totPnL:0,liveMargin:0,lots:0,totalShares:0});
+
+  html += `<div style="padding:0 14px 6px;font-size:10px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.7px">By Symbol (Consolidated)</div>`;
   html += `<div style="overflow:hidden;border-radius:8px;margin:0 14px 18px;border:1px solid rgba(255,255,255,.07)"><div class="tbl-wrap" style="padding:0;margin:0"><table class="tbl" style="min-width:680px"><thead><tr>
     ${thL('Symbol','symbol','symSortBy',symSortCol,symSortDir)}
     ${th('Avg Buy','buy','symSortBy',symSortCol,symSortDir)}
     ${th('LTP','ltp','symSortBy',symSortCol,symSortDir)}
     ${th('Day P&L','dayPnL','symSortBy',symSortCol,symSortDir)}
     ${th('Total P&L','totPnL','symSortBy',symSortCol,symSortDir)}
-    ${th('Lots/Shares','lots','symSortBy',symSortCol,symSortDir)}
+    ${th('Lots','lots','symSortBy',symSortCol,symSortDir)}
     ${th('Value','val','symSortBy',symSortCol,symSortDir)}
     ${th('Cash Invested','margin','symSortBy',symSortCol,symSortDir)}
   </tr></thead><tbody>`;
@@ -1066,7 +1097,7 @@ function renderSummary() {
   for (const r of symRows) {
     const chg = r.ltpChgPct ? `<br><span style="font-size:9px">${r.ltpChgPct>=0?'+':''}${r.ltpChgPct.toFixed(1)}%</span>` : '';
     html+=`<tr>
-      <td><div class="tbl-sym">${r.symbol}</div><div class="tbl-meta">${fi(r.totalShares)} sh total</div></td>
+      <td><div class="tbl-sym">${r.symbol}</div><div class="tbl-meta">${r.lots} lots · ${fi(r.totalShares)} sh</div></td>
       <td>₹${fi(r.wAvgBuy,2)}</td>
       <td class="${pc(r.dayPnL)}">₹${fi(r.ltp,2)}${chg}</td>
       <td class="${pc(r.dayPnL)}">${r.dayPnL!==0?'₹'+fp(r.dayPnL):'—'}</td>
@@ -1076,7 +1107,18 @@ function renderSummary() {
       <td>${r.liveMargin>0?'₹'+fi(r.liveMargin):'—'}</td>
     </tr>`;
   }
-  html += `</tbody></table></div></div>`;
+
+  // Totals row — should match profile table totals
+  html += `<tr style="border-top:2px solid rgba(255,255,255,.15)">
+    <td><div class="tbl-sym" style="color:#fff">Total</div><div class="tbl-meta">${symTot.lots} lots · ${fi(symTot.totalShares)} sh</div></td>
+    <td>—</td>
+    <td>—</td>
+    <td class="${pc(symTot.dayPnL)}"><b>₹${fp(symTot.dayPnL)}</b></td>
+    <td class="${pc(symTot.totPnL)}"><b>₹${fp(symTot.totPnL)}</b></td>
+    <td>${symTot.lots} lots</td>
+    <td><b>₹${fi(symTot.holdVal)}</b></td>
+    <td><b>${symTot.liveMargin>0?'₹'+fi(symTot.liveMargin):'—'}</b></td>
+  </tr>`;
   document.getElementById('main').innerHTML = html;
 }
 
