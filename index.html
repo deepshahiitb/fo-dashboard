@@ -1009,8 +1009,8 @@ function renderSummary() {
       <td class="neu">${r.marginVal>0?'₹'+fi(r.marginVal):'—'}</td>
     </tr>`;
   }
-  html+=`<tr style="border-top:2px solid rgba(108,92,231,.3)">
-    <td><div class="tbl-sym" style="color:var(--ac2)">Total</div><div class="tbl-meta">${all.open} open</div></td>
+  html+=`<tr style="border-top:2px solid rgba(255,255,255,.15)">
+    <td><div class="tbl-sym" style="color:#fff">Total</div><div class="tbl-meta">${all.open} open</div></td>
     <td class="neu"><b>₹${fi(all.holdVal)}</b></td>
     <td class="${pc(all.dayPnL)}"><b>₹${fp(all.dayPnL)}</b></td>
     <td class="${pc(all.totPnL)}"><b>₹${fp(all.totPnL)}</b></td>
@@ -1018,43 +1018,49 @@ function renderSummary() {
   </tr></tbody></table></div></div>`;
 
   // ── TABLE 2: Per-symbol aggregated across all profiles ────────────────────
-  // Group open positions by symbol
+  // Use only open positions (matching holdVal/margin), but use same totPnL() fn as smry
   const symMap = {};
   for (const p of S.positions.filter(p=>!p.closed)) {
     if (!symMap[p.symbol]) {
       symMap[p.symbol] = {
-        symbol: p.symbol,
-        instrKey: p.instrKey,
+        symbol:      p.symbol,
+        instrKey:    p.instrKey,
         totalShares: 0,
-        totalCost: 0,   // sum of buyPrice × shares for weighted avg
-        lots: 0,
-        lotSize: p.lotSize,
-        ltp: p.ltp || p.buyPrice || 0,
-        prevClose: p.prevClose || 0,
-        ltpChgPct: p.ltpChgPct || 0,
-        liveMargin: 0,
+        totalCost:   0,
+        lots:        0,
+        lotSize:     p.lotSize,
+        ltp:         p.ltp || p.buyPrice || 0,
+        prevClose:   p.prevClose || 0,
+        ltpChgPct:   p.ltpChgPct || 0,
+        liveMargin:  0,
+        totPnL:      0,
+        dayPnL:      0,
+        holdVal:     0,
       };
     }
+    const sym = symMap[p.symbol];
     const shares = p.lots * p.lotSize;
-    symMap[p.symbol].totalShares += shares;
-    symMap[p.symbol].totalCost   += (p.buyPrice || 0) * shares;
-    symMap[p.symbol].lots        += p.lots;
-    symMap[p.symbol].liveMargin  += (p.liveMargin || 0);
-    // Use most recent ltp across positions for same symbol
+    sym.totalShares += shares;
+    sym.totalCost   += (p.buyPrice || 0) * shares;
+    sym.lots        += p.lots;
+    sym.liveMargin  += (p.liveMargin || 0);
+    // Use same functions as smry() for consistency
+    sym.totPnL  += totPnL(p);
+    sym.dayPnL  += dayPnL(p);
+    sym.holdVal += val(p);
+    // Use most recent ltp for display
     if ((p.ltp||0) > 0) {
-      symMap[p.symbol].ltp = p.ltp;
-      symMap[p.symbol].prevClose = p.prevClose||0;
-      symMap[p.symbol].ltpChgPct = p.ltpChgPct||0;
+      sym.ltp       = p.ltp;
+      sym.prevClose = p.prevClose || 0;
+      sym.ltpChgPct = p.ltpChgPct || 0;
     }
   }
 
-  let symRows = Object.values(symMap).map(s => {
-    const wAvgBuy = s.totalShares > 0 ? s.totalCost / s.totalShares : 0;
-    const holdVal = s.ltp * s.totalShares;
-    const totPnL  = (s.ltp - wAvgBuy) * s.totalShares;
-    const dayPnL  = s.prevClose ? (s.ltp - s.prevClose) * s.totalShares : 0;
-    return {...s, wAvgBuy, holdVal, totPnL, dayPnL};
-  });
+  let symRows = Object.values(symMap).map(s => ({
+    ...s,
+    wAvgBuy: s.totalShares > 0 ? s.totalCost / s.totalShares : 0,
+    pnlPct:  s.totalCost  > 0 ? s.totPnL / s.totalCost * 100 : 0,
+  }));
 
   symRows = [...symRows].sort((a,b)=>{
     let av, bv;
@@ -1064,6 +1070,7 @@ function renderSummary() {
       case 'ltp':     av=a.ltp;        bv=b.ltp; break;
       case 'dayPnL':  av=a.dayPnL;     bv=b.dayPnL; break;
       case 'totPnL':  av=a.totPnL;     bv=b.totPnL; break;
+      case 'pnlPct':  av=a.pnlPct;     bv=b.pnlPct; break;
       case 'lots':    av=a.lots;       bv=b.lots; break;  // sort by lots, not shares
       case 'val':     av=a.holdVal;    bv=b.holdVal; break;
       case 'margin':  av=a.liveMargin; bv=b.liveMargin; break;
@@ -1080,7 +1087,9 @@ function renderSummary() {
     liveMargin: t.liveMargin + r.liveMargin,
     lots:       t.lots       + r.lots,
     totalShares:t.totalShares+ r.totalShares,
-  }), {holdVal:0,dayPnL:0,totPnL:0,liveMargin:0,lots:0,totalShares:0});
+    totalCost:  t.totalCost  + r.totalCost,
+  }), {holdVal:0,dayPnL:0,totPnL:0,liveMargin:0,lots:0,totalShares:0,totalCost:0});
+  const symTotPnlPct = symTot.totalCost > 0 ? symTot.totPnL / symTot.totalCost * 100 : 0;
 
   html += `<div style="padding:0 14px 6px;font-size:10px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.7px">By Symbol (Consolidated)</div>`;
   html += `<div style="overflow:hidden;border-radius:8px;margin:0 14px 18px;border:1px solid rgba(255,255,255,.07)"><div class="tbl-wrap" style="padding:0;margin:0"><table class="tbl" style="min-width:680px"><thead><tr>
@@ -1089,6 +1098,7 @@ function renderSummary() {
     ${th('LTP','ltp','symSortBy',symSortCol,symSortDir)}
     ${th('Day P&L','dayPnL','symSortBy',symSortCol,symSortDir)}
     ${th('Total P&L','totPnL','symSortBy',symSortCol,symSortDir)}
+    ${th('P&L %','pnlPct','symSortBy',symSortCol,symSortDir)}
     ${th('Lots','lots','symSortBy',symSortCol,symSortDir)}
     ${th('Value','val','symSortBy',symSortCol,symSortDir)}
     ${th('Cash Invested','margin','symSortBy',symSortCol,symSortDir)}
@@ -1102,19 +1112,21 @@ function renderSummary() {
       <td class="${pc(r.dayPnL)}">₹${fi(r.ltp,2)}${chg}</td>
       <td class="${pc(r.dayPnL)}">${r.dayPnL!==0?'₹'+fp(r.dayPnL):'—'}</td>
       <td class="${pc(r.totPnL)}">₹${fp(r.totPnL)}</td>
+      <td class="${pc(r.totPnL)}">${r.pnlPct!==0?(r.pnlPct>=0?'+':'')+r.pnlPct.toFixed(2)+'%':'—'}</td>
       <td>${r.lots} lots<br><span style="font-size:9px;color:var(--t3)">${fi(r.totalShares)} sh</span></td>
       <td>₹${fi(r.holdVal)}</td>
       <td>${r.liveMargin>0?'₹'+fi(r.liveMargin):'—'}</td>
     </tr>`;
   }
 
-  // Totals row — should match profile table totals
+  // Totals row — matches profile table totals
   html += `<tr style="border-top:2px solid rgba(255,255,255,.15)">
     <td><div class="tbl-sym" style="color:#fff">Total</div><div class="tbl-meta">${symTot.lots} lots · ${fi(symTot.totalShares)} sh</div></td>
     <td>—</td>
     <td>—</td>
     <td class="${pc(symTot.dayPnL)}"><b>₹${fp(symTot.dayPnL)}</b></td>
     <td class="${pc(symTot.totPnL)}"><b>₹${fp(symTot.totPnL)}</b></td>
+    <td class="${pc(symTot.totPnL)}"><b>${symTotPnlPct!==0?(symTotPnlPct>=0?'+':'')+symTotPnlPct.toFixed(2)+'%':'—'}</b></td>
     <td>${symTot.lots} lots</td>
     <td><b>₹${fi(symTot.holdVal)}</b></td>
     <td><b>${symTot.liveMargin>0?'₹'+fi(symTot.liveMargin):'—'}</b></td>
@@ -1142,6 +1154,8 @@ function renderMain() {
       case 'margin':   av=margin(a);         bv=margin(b); break;
       case 'dayPnL':   av=dayPnL(a);         bv=dayPnL(b); break;
       case 'totPnL':   av=totPnL(a);         bv=totPnL(b); break;
+      case 'pnlPct':  av = a.buyPrice>0 ? totPnL(a)/(a.buyPrice*a.lots*a.lotSize) : 0;
+                      bv = b.buyPrice>0 ? totPnL(b)/(b.buyPrice*b.lots*b.lotSize) : 0; break;
       case 'date':     av=a.buyDate||'';     bv=b.buyDate||''; break;
       default:         av=a.symbol;          bv=b.symbol;
     }
@@ -1187,6 +1201,7 @@ function mkTable(title, positions, showAddBtn) {
     ${thSort('LTP','ltp')}
     ${thSort('Day P&L','dayPnL')}
     ${thSort('Total P&L','totPnL')}
+    ${thSort('P&L %','pnlPct')}
     ${thSort('Lots','lots')}
     ${thSort('Value','val')}
     ${thSort('Margin','margin')}
@@ -1199,6 +1214,8 @@ function mkTable(title, positions, showAddBtn) {
     const dp = dayPnL(p);
     const tp = totPnL(p);
     const v = val(p);
+    const cost = p.buyPrice * p.lots * p.lotSize;
+    const pnlPct = cost > 0 ? (tp / cost * 100) : 0;
     const pn = S.activeProfile==='overall' ? (S.profiles.find(x=>x.id===p.profileId)?.name||'') : '';
     const chgPct = p.ltpChgPct ? `<br><span style="font-size:9px">${p.ltpChgPct>=0?'+':''}${p.ltpChgPct.toFixed(1)}%</span>` : '';
     html += `<tr>
@@ -1210,6 +1227,7 @@ function mkTable(title, positions, showAddBtn) {
       <td class="${pc(dp)}">₹${fi(l,2)}${chgPct}</td>
       <td class="${pc(dp)}">${dp!==0?'₹'+fp(dp):'—'}</td>
       <td class="${pc(tp)}">₹${fp(tp)}</td>
+      <td class="${pc(tp)}">${pnlPct!==0?(pnlPct>=0?'+':'')+pnlPct.toFixed(2)+'%':'—'}</td>
       <td>${p.lots}×${fi(p.lotSize)}<br><span style="font-size:9px;color:var(--t3)">${fi(p.lots*p.lotSize)} sh</span></td>
       <td>₹${fi(v)}</td>
       <td>${margin(p)>0?'₹'+fi(margin(p)):'—'}</td>
