@@ -221,6 +221,7 @@ select.finp option{background:var(--bg3)}
       <div style="display:flex;gap:0;background:var(--bg3);padding:3px;border-radius:8px;border:1px solid var(--b2)">
         <button type="button" id="view_holdings" class="view-btn active" onclick="setView('holdings')">Holdings</button>
         <button type="button" id="view_summary" class="view-btn" onclick="setView('summary')">Summary</button>
+        <button type="button" id="view_prices" class="view-btn" onclick="setView('prices')">Prices</button>
         <button type="button" id="view_pnl" class="view-btn" onclick="setView('pnl')">P&amp;L Log</button>
       </div>
       <button class="btn-add" onclick="refreshPrices()" style="display:flex;align-items:center;gap:5px">
@@ -408,7 +409,7 @@ let symSortDir = 1;
 
 function setView(v) {
   currentView = v;
-  ['holdings','summary','pnl'].forEach(n => {
+  ['holdings','summary','prices','pnl'].forEach(n => {
     const el = document.getElementById('view_'+n);
     if(el) el.classList.toggle('active', v===n);
   });
@@ -889,12 +890,134 @@ function render() {
   } else if (currentView === 'summary') {
     document.getElementById('sum').style.display = 'none';
     renderSummary();
+  } else if (currentView === 'prices') {
+    document.getElementById('sum').style.display = 'none';
+    renderPrices(); // will auto-fetch if no data
   } else {
     document.getElementById('sum').style.display = '';
     renderSum();
     renderMain();
   }
   document.getElementById('lastUpd').textContent = S.lastRefresh?`Prices as of ${S.lastRefresh} IST`:'';
+}
+
+// ═══ PRICES VIEW ═══
+let pricesData = {};       // { SYMBOL: [{slot, expiry, monthLabel, price, prevClose, netChange, netChangePct, lotSize}] }
+let pricesLoading = false;
+let pricesLastFetch = null;
+
+async function fetchFuturesPrices() {
+  if (pricesLoading) return;
+  const symbols = [...new Set(S.positions.filter(p=>!p.closed).map(p=>p.symbol))];
+  if (!symbols.length) return;
+
+  pricesLoading = true;
+  document.getElementById('main').innerHTML = `<div style="padding:20px 14px;color:var(--t2);font-size:13px">Fetching futures prices…</div>`;
+
+  try {
+    const r = await fetch(`${WORKER}/futures-prices`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','X-PIN':PIN},
+      body: JSON.stringify({ symbols })
+    });
+    if (r.ok) {
+      const d = await r.json();
+      pricesData = d.prices || {};
+      pricesLastFetch = new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'});
+    }
+  } catch(e) { console.error('Futures prices fetch failed:', e); }
+
+  pricesLoading = false;
+  renderPrices();
+}
+
+function renderPrices() {
+  if (!PIN) return;
+
+  const symbols = [...new Set(S.positions.filter(p=>!p.closed).map(p=>p.symbol))].sort();
+  if (!symbols.length) {
+    document.getElementById('main').innerHTML = `<div class="empty">No open positions.</div>`;
+    return;
+  }
+
+  // If no data yet, trigger fetch
+  if (!Object.keys(pricesData).length) {
+    fetchFuturesPrices();
+    return;
+  }
+
+  // Derive column headers from actual expiry data (dynamic month names)
+  // Find the most common near/mid/far month labels across all symbols
+  const slotLabels = {near:'Near', mid:'Mid', far:'Far'};
+  const firstWithData = Object.values(pricesData).find(arr => arr?.length >= 1);
+  if (firstWithData) {
+    firstWithData.forEach(f => { slotLabels[f.slot] = f.monthLabel; });
+  }
+
+  let html = `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px 6px">
+    <div style="font-size:10px;color:#fff;font-weight:700;text-transform:uppercase;letter-spacing:.7px">Futures Prices</div>
+    <div style="display:flex;align-items:center;gap:8px">
+      ${pricesLastFetch?`<span style="font-size:10px;color:var(--t3)">as of ${pricesLastFetch} IST</span>`:''}
+      <button class="btn-add" onclick="fetchFuturesPrices()" style="font-size:11px;padding:4px 10px">↻ Refresh</button>
+    </div>
+  </div>`;
+
+  html += `<div style="overflow:hidden;border-radius:8px;margin:0 14px 14px;border:1px solid rgba(255,255,255,.07)">
+    <div class="tbl-wrap" style="padding:0;margin:0"><table class="tbl" style="min-width:420px">
+    <thead><tr>
+      <th style="text-align:left;position:sticky;left:0;background:#18181f;z-index:10;min-width:110px;border-right:1px solid rgba(255,255,255,.15)">Symbol</th>
+      <th>${slotLabels.near} (Near)</th>
+      <th>${slotLabels.mid} (Mid)</th>
+      <th>${slotLabels.far} (Far)</th>
+    </tr></thead><tbody>`;
+
+  for (const sym of symbols) {
+    const contracts = pricesData[sym];
+    if (!contracts) {
+      html += `<tr>
+        <td style="position:sticky;left:0;background:#111118;border-right:1px solid rgba(255,255,255,.15)">
+          <div class="tbl-sym">${sym}</div>
+        </td>
+        <td colspan="3" style="color:var(--t3);font-size:11px">Not in F&O or no data</td>
+      </tr>`;
+      continue;
+    }
+
+    const nearPrice = contracts[0]?.price || 0;
+
+    const cells = [0,1,2].map(idx => {
+      const c = contracts[idx];
+      if (!c || !c.price) return `<td style="color:var(--t3)">—</td>`;
+
+      // Green if cheaper than near month (backwardation), white otherwise
+      const isBackward = idx > 0 && nearPrice > 0 && c.price < nearPrice;
+      const priceColor = isBackward ? 'var(--gn)' : '#fff';
+      const chgColor   = c.netChange < 0 ? 'var(--rd)' : c.netChange > 0 ? 'var(--gn)' : 'var(--t3)';
+      const chgSign    = c.netChange >= 0 ? '+' : '';
+
+      return `<td>
+        <div style="color:${priceColor};font-weight:700;font-size:13px">₹${fi(c.price,2)}</div>
+        <div style="color:${chgColor};font-size:9px;margin-top:2px">${chgSign}${c.netChangePct.toFixed(2)}%</div>
+      </td>`;
+    });
+
+    html += `<tr>
+      <td style="position:sticky;left:0;background:#111118;border-right:1px solid rgba(255,255,255,.15)">
+        <div class="tbl-sym">${sym}</div>
+        <div class="tbl-meta">${contracts[0]?.lotSize||'?'} lot</div>
+      </td>
+      ${cells.join('')}
+    </tr>`;
+  }
+
+  html += `</tbody></table></div></div>`;
+
+  // Note about backwardation
+  html += `<div style="padding:4px 14px 12px;font-size:10px;color:var(--t3)">
+    <span style="color:var(--gn)">Green</span> = price lower than near month (backwardation — favourable for longs rolling forward)
+  </div>`;
+
+  document.getElementById('main').innerHTML = html;
 }
 
 function renderPnL() {
