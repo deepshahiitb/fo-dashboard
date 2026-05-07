@@ -221,7 +221,7 @@ select.finp option{background:var(--bg3)}
         <button type="button" id="view_holdings" class="view-btn active" onclick="setView('holdings')">Holdings</button>
         <button type="button" id="view_summary" class="view-btn" onclick="setView('summary')">Summary</button>
         <button type="button" id="view_prices" class="view-btn" onclick="setView('prices')">Prices</button>
-        <button type="button" id="view_pnl" class="view-btn" onclick="setView('pnl')">P&amp;L Log</button>
+        <button type="button" id="view_pnl" class="view-btn" onclick="setView('pnl')">P&amp;L</button>
       </div>
       <button class="btn-add" onclick="handleRefresh()" style="display:flex;align-items:center;gap:5px;white-space:nowrap">
         <svg id="refIco" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
@@ -901,7 +901,7 @@ function render() {
 }
 
 // ═══ PRICES VIEW ═══
-let pricesData = {};       // { SYMBOL: [{slot, expiry, monthLabel, price, prevClose, netChange, netChangePct, lotSize}] }
+let pricesData = {};       // { SYMBOL: { spot, contracts:[{slot,expiry,monthLabel,price,basis}] } }
 let pricesLoading = false;
 let pricesLastFetch = null;
 
