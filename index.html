@@ -958,10 +958,9 @@ function renderPrices() {
   </div>`;
 
   html += `<div style="overflow:hidden;border-radius:8px;margin:0 14px 14px;border:1px solid rgba(255,255,255,.07)">
-    <div class="tbl-wrap" style="padding:0;margin:0"><table class="tbl" style="min-width:480px">
+    <div class="tbl-wrap" style="padding:0;margin:0"><table class="tbl" style="min-width:380px">
     <thead><tr>
       <th style="text-align:left;position:sticky;left:0;background:#18181f;z-index:10;min-width:110px;border-right:1px solid rgba(255,255,255,.15)">Symbol</th>
-      <th>Spot</th>
       <th>${slotLabels.near} (Near)</th>
       <th>${slotLabels.mid} (Mid)</th>
       <th>${slotLabels.far} (Far)</th>
@@ -974,21 +973,18 @@ function renderPrices() {
         <td style="position:sticky;left:0;background:#111118;border-right:1px solid rgba(255,255,255,.15)">
           <div class="tbl-sym">${sym}</div>
         </td>
-        <td colspan="4" style="color:var(--t3);font-size:11px">Not in F&O or no data</td>
+        <td colspan="3" style="color:var(--t3);font-size:11px">Not in F&O or no data</td>
       </tr>`;
       continue;
     }
 
-    const spot = d.spot || 0;
-    const spotCell = spot > 0
-      ? `<td><div style="color:#fff;font-weight:600;font-size:13px">₹${fi(spot,2)}</div></td>`
-      : `<td style="color:var(--t3)">—</td>`;
+    const nearPrice = d.contracts?.[0]?.price || 0;
 
     const cells = [0,1,2].map(idx => {
       const c = d.contracts?.[idx];
       if (!c || !c.price) return `<td style="color:var(--t3)">—</td>`;
-      // Green = futures below spot (backwardation vs spot)
-      const isBackward = spot > 0 && c.price < spot;
+      // Near always white; Mid/Far green if cheaper than near (backwardation)
+      const isBackward = idx > 0 && nearPrice > 0 && c.price < nearPrice;
       const color = isBackward ? 'var(--gn)' : '#fff';
       return `<td><div style="color:${color};font-weight:600;font-size:13px">₹${fi(c.price,2)}</div></td>`;
     });
@@ -997,14 +993,13 @@ function renderPrices() {
       <td style="position:sticky;left:0;background:#111118;border-right:1px solid rgba(255,255,255,.15)">
         <div class="tbl-sym">${sym}</div>
       </td>
-      ${spotCell}
       ${cells.join('')}
     </tr>`;
   }
 
   html += `</tbody></table></div></div>`;
   html += `<div style="padding:4px 14px 12px;font-size:10px;color:var(--t3)">
-    <span style="color:var(--gn)">Green</span> = futures below spot (backwardation — cheaper to roll forward)
+    <span style="color:var(--gn)">Green</span> = mid/far cheaper than near (backwardation — you get paid to roll forward)
   </div>`;
 
   document.getElementById('main').innerHTML = html;
