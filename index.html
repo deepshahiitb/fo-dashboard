@@ -213,20 +213,19 @@ select.finp option{background:var(--bg3)}
       <div class="title">F<em>&</em>O <span style="color:var(--t2);font-weight:400;font-size:13px">Family</span></div>
       <div class="hdr-right">
         <div class="mkt-pill"><span class="mkt-dot" id="mktDot"></span><span id="mktLbl">—</span></div>
-        <button class="ibtn" onclick="hardReload()" title="Reload app">↺</button>
         <button class="ibtn" onclick="openSheet('settingsSheet')">⚙</button>
       </div>
     </div>
-    <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;justify-content:space-between">
       <div style="display:flex;gap:0;background:var(--bg3);padding:3px;border-radius:8px;border:1px solid var(--b2)">
         <button type="button" id="view_holdings" class="view-btn active" onclick="setView('holdings')">Holdings</button>
         <button type="button" id="view_summary" class="view-btn" onclick="setView('summary')">Summary</button>
         <button type="button" id="view_prices" class="view-btn" onclick="setView('prices')">Prices</button>
         <button type="button" id="view_pnl" class="view-btn" onclick="setView('pnl')">P&amp;L Log</button>
       </div>
-      <button class="btn-add" onclick="refreshPrices()" style="display:flex;align-items:center;gap:5px">
+      <button class="btn-add" onclick="handleRefresh()" style="display:flex;align-items:center;gap:5px;white-space:nowrap">
         <svg id="refIco" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-        Refresh Prices
+        Refresh
       </button>
     </div>
     <div class="ptabs" id="ptabs"></div>
@@ -956,10 +955,7 @@ function renderPrices() {
 
   let html = `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px 6px">
     <div style="font-size:10px;color:#fff;font-weight:700;text-transform:uppercase;letter-spacing:.7px">Futures Prices</div>
-    <div style="display:flex;align-items:center;gap:8px">
-      ${pricesLastFetch?`<span style="font-size:10px;color:var(--t3)">as of ${pricesLastFetch} IST</span>`:''}
-      <button class="btn-add" onclick="fetchFuturesPrices()" style="font-size:11px;padding:4px 10px">↻ Refresh</button>
-    </div>
+    ${pricesLastFetch?`<span style="font-size:10px;color:var(--t3)">as of ${pricesLastFetch} IST</span>`:''}
   </div>`;
 
   html += `<div style="overflow:hidden;border-radius:8px;margin:0 14px 14px;border:1px solid rgba(255,255,255,.07)">
@@ -992,19 +988,15 @@ function renderPrices() {
       // Green if cheaper than near month (backwardation), white otherwise
       const isBackward = idx > 0 && nearPrice > 0 && c.price < nearPrice;
       const priceColor = isBackward ? 'var(--gn)' : '#fff';
-      const chgColor   = c.netChange < 0 ? 'var(--rd)' : c.netChange > 0 ? 'var(--gn)' : 'var(--t3)';
-      const chgSign    = c.netChange >= 0 ? '+' : '';
 
       return `<td>
-        <div style="color:${priceColor};font-weight:700;font-size:13px">₹${fi(c.price,2)}</div>
-        <div style="color:${chgColor};font-size:9px;margin-top:2px">${chgSign}${c.netChangePct.toFixed(2)}%</div>
+        <div style="color:${priceColor};font-weight:600;font-size:13px">₹${fi(c.price,2)}</div>
       </td>`;
     });
 
     html += `<tr>
       <td style="position:sticky;left:0;background:#111118;border-right:1px solid rgba(255,255,255,.15)">
         <div class="tbl-sym">${sym}</div>
-        <div class="tbl-meta">${contracts[0]?.lotSize||'?'} lot</div>
       </td>
       ${cells.join('')}
     </tr>`;
@@ -1551,9 +1543,17 @@ function closeSheet(id) { document.getElementById(id).classList.remove('open'); 
 document.querySelectorAll('.overlay').forEach(el=>el.addEventListener('click',e=>{if(e.target===el)closeSheet(el.id);}));
 document.addEventListener('click',e=>{if(!e.target.closest('.srch-wrap'))document.getElementById('srchRes').style.display='none';});
 
-// Hard reload the page — forces fresh HTML from GitHub, clears all caches
-function hardReload() {
-  window.location.reload(true);
+// Hard reload
+function hardReload() { window.location.reload(true); }
+
+// Smart refresh — prices tab fetches futures, all other tabs refresh LTP
+function handleRefresh() {
+  if (currentView === 'prices') {
+    pricesData = {}; // force re-fetch
+    fetchFuturesPrices();
+  } else {
+    refreshPrices();
+  }
 }
 
 // ═══ INIT ═══
