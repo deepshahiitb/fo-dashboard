@@ -1175,7 +1175,7 @@ function renderSummary() {
     switch(symSortCol) {
       case 'symbol':  av=a.symbol;     bv=b.symbol; break;
       case 'buy':     av=a.wAvgBuy;    bv=b.wAvgBuy; break;
-      case 'ltp':     av=a.ltp;        bv=b.ltp; break;
+      case 'ltp':     av=a.ltpChgPct;  bv=b.ltpChgPct; break;
       case 'dayPnL':  av=a.dayPnL;     bv=b.dayPnL; break;
       case 'totPnL':  av=a.totPnL;     bv=b.totPnL; break;
       case 'pnlPct':  av=a.pnlPct;     bv=b.pnlPct; break;
@@ -1257,7 +1257,7 @@ function renderMain() {
       case 'symbol':   av=a.symbol;          bv=b.symbol; break;
       case 'lots':     av=a.lots*a.lotSize;  bv=b.lots*b.lotSize; break;
       case 'buy':      av=a.buyPrice;        bv=b.buyPrice; break;
-      case 'ltp':      av=a.ltp||a.buyPrice; bv=b.ltp||b.buyPrice; break;
+      case 'ltp':      av=a.ltpChgPct||0; bv=b.ltpChgPct||0; break;
       case 'val':      av=val(a);            bv=val(b); break;
       case 'margin':   av=margin(a);         bv=margin(b); break;
       case 'dayPnL':   av=dayPnL(a);         bv=dayPnL(b); break;
