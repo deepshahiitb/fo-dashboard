@@ -315,6 +315,31 @@ select.finp option{background:var(--bg3)}
   </div>
 </div>
 
+<!-- EDIT CLOSED POSITION -->
+<div class="overlay" id="editClosedSheet">
+  <div class="sheet">
+    <div class="sh"></div>
+    <div class="sh-h"><span class="sh-t">Edit Closed Trade</span><button class="sh-x" onclick="closeSheet('editClosedSheet')">✕</button></div>
+    <div class="fbody">
+      <div style="font-size:11px;color:var(--t2);background:var(--bg3);padding:8px 11px;border-radius:var(--r2)" id="editClosedLabel"></div>
+      <div class="frow">
+        <div class="fgrp"><span class="flbl">Lots</span><input class="finp" id="ec_lots" type="number" min="1"></div>
+        <div class="fgrp"><span class="flbl">Lot Size</span><input class="finp" id="ec_lsz" type="number" min="1"></div>
+      </div>
+      <div class="frow">
+        <div class="fgrp"><span class="flbl">Buy Price ₹</span><input class="finp" id="ec_bp" type="number" step="0.05"></div>
+        <div class="fgrp"><span class="flbl">Buy Date</span><input class="finp" id="ec_bdt" type="date"></div>
+      </div>
+      <div class="frow">
+        <div class="fgrp"><span class="flbl">Sell Price ₹</span><input class="finp" id="ec_sp" type="number" step="0.05"></div>
+        <div class="fgrp"><span class="flbl">Sell Date</span><input class="finp" id="ec_sdt" type="date"></div>
+      </div>
+      <div class="fgrp"><span class="flbl">Notes</span><input class="finp" id="ec_nt"></div>
+      <button class="bp" onclick="saveEditClosed()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
 <!-- SETTINGS -->
 <div class="overlay" id="settingsSheet">
   <div class="sheet">
@@ -356,8 +381,39 @@ const AUTH_URL = `https://api.upstox.com/v2/login/authorization/dialog?response_
 
 let S = {profiles:[], positions:[], activeProfile:'overall', lastRefresh:null};
 let PIN = '';
-let editId = null;
-let editInstrKey = null; // instrKey of position being edited, for historical price fetch
+let editClosedId = null;
+
+function openEditClosed(id) {
+  const p = S.positions.find(x=>x.id===id); if(!p) return;
+  editClosedId = id;
+  document.getElementById('editClosedLabel').textContent = `${p.symbol} · ${p.exchange||'NSE'} · Closed trade`;
+  document.getElementById('ec_lots').value  = p.lots;
+  document.getElementById('ec_lsz').value   = p.lotSize;
+  document.getElementById('ec_bp').value    = p.buyPrice || '';
+  document.getElementById('ec_bdt').value   = p.buyDate  || '';
+  document.getElementById('ec_sp').value    = p.sellPrice || '';
+  document.getElementById('ec_sdt').value   = p.sellDate  || '';
+  document.getElementById('ec_nt').value    = p.notes     || '';
+  openSheet('editClosedSheet');
+}
+
+async function saveEditClosed() {
+  const p = S.positions.find(x=>x.id===editClosedId); if(!p) return;
+  const lots    = parseInt(document.getElementById('ec_lots').value);
+  const lotSize = parseInt(document.getElementById('ec_lsz').value);
+  const bp      = parseFloat(document.getElementById('ec_bp').value);
+  const sp      = parseFloat(document.getElementById('ec_sp').value);
+  if (lots    > 0) p.lots     = lots;
+  if (lotSize > 0) p.lotSize  = lotSize;
+  if (!isNaN(bp) && bp > 0) p.buyPrice  = bp;
+  if (!isNaN(sp) && sp > 0) p.sellPrice = sp;
+  p.buyDate  = document.getElementById('ec_bdt').value  || p.buyDate;
+  p.sellDate = document.getElementById('ec_sdt').value  || p.sellDate;
+  p.notes    = document.getElementById('ec_nt').value.trim();
+  await saveData();
+  render();
+  closeSheet('editClosedSheet');
+} // instrKey of position being edited, for historical price fetch
 
 function openEdit(id) {
   const p = S.positions.find(x=>x.id===id); if(!p) return;
@@ -1051,6 +1107,10 @@ function renderPnL() {
         <span>Sold <b>${fd(p.sellDate)} @ ₹${fi(p.sellPrice,2)}</b></span>
         <span>Held <b>${days} day${days!==1?'s':''}</b></span>
         ${p.notes?`<span style="grid-column:1/-1">Notes: <b>${p.notes}</b></span>`:''}
+      </div>
+      <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:8px">
+        <button class="bsm" onclick="openEditClosed('${p.id}')" style="color:var(--ac2);border-color:rgba(162,155,254,.3)">Edit</button>
+        <button class="bsm del" onclick="delPos('${p.id}')">Del</button>
       </div>
     </div>`;
   }
