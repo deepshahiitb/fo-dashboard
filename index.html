@@ -302,6 +302,7 @@ select.finp option{background:var(--bg3)}
     <div class="sh-h"><span class="sh-t">Edit Position</span><button class="sh-x" onclick="closeSheet('editSheet')">✕</button></div>
     <div class="fbody">
       <div style="font-size:11px;color:var(--t2);background:var(--bg3);padding:8px 11px;border-radius:var(--r2)" id="editLabel"></div>
+      <div class="fgrp"><span class="flbl">Profile</span><select class="finp" id="e_prof"></select></div>
       <div class="fgrp"><span class="flbl">Contract Month</span><select class="finp" id="e_month" onchange="onEditMonthChange()"><option value="">Loading…</option></select></div>
       <div class="frow">
         <div class="fgrp"><span class="flbl">Lots</span><input class="finp" id="e_lots" type="number" min="1"></div>
@@ -422,6 +423,9 @@ async function openEdit(id) {
   editId = id;
   editInstrKey = p.instrKey;
   document.getElementById('editLabel').textContent = `${p.symbol} · ${p.exchange||'NSE'}`;
+  document.getElementById('e_prof').innerHTML = S.profiles.map(pr =>
+    `<option value="${pr.id}" ${pr.id===p.profileId?'selected':''}>${pr.name}</option>`
+  ).join('');
   document.getElementById('e_lots').value = p.lots;
   document.getElementById('e_lsz').value = p.lotSize;
   document.getElementById('e_bp').value = p.buyPrice || '';
@@ -468,6 +472,7 @@ function onEditDateChange() {
 
 async function saveEdit() {
   const p = S.positions.find(x=>x.id===editId); if(!p) return;
+  p.profileId = document.getElementById('e_prof').value || p.profileId;
   p.lots    = parseInt(document.getElementById('e_lots').value) || p.lots;
   p.lotSize = parseInt(document.getElementById('e_lsz').value) || p.lotSize;
   const bpVal = parseFloat(document.getElementById('e_bp').value);
@@ -1624,7 +1629,11 @@ async function confirmSell() {
 }
 
 async function delPos(id) {
-  if (!confirm('Delete?')) return;
+  const p = S.positions.find(x=>x.id===id);
+  const msg = p?.closed
+    ? `Permanently delete this closed trade? Its P&L will be removed from all totals.`
+    : `Delete this position? It will be removed entirely — it will NOT appear in P&L. If this trade actually happened, use Sell instead.`;
+  if (!confirm(msg)) return;
   S.positions=S.positions.filter(p=>p.id!==id);
   await saveData();
   render();
