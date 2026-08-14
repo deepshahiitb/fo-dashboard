@@ -421,7 +421,7 @@ async function saveEditClosed() {
 async function openEdit(id) {
   const p = S.positions.find(x=>x.id===id); if(!p) return;
   editId = id;
-  editInstrKey = p.instrKey;
+  editInstrKey = p.instrKey || p.foInstrKey;
   document.getElementById('editLabel').textContent = `${p.symbol} · ${p.exchange||'NSE'}`;
   document.getElementById('e_prof').innerHTML = S.profiles.map(pr =>
     `<option value="${pr.id}" ${pr.id===p.profileId?'selected':''}>${pr.name}</option>`
@@ -797,19 +797,32 @@ async function doSearch(q) {
     // Build lot size map AND futures instrument_key map from FUT instruments
     const lotMap = {};
     const foKeyMap = {}; // underlying_symbol → futures instrument_key
+    const indexMap = {}; // underlying_symbol → {name, lotSize, foInstrKey} for INDEX futures (NIFTY, BANKNIFTY, etc.)
     for (const i of (foData.data||[])) {
       if (i.instrument_type === 'FUT' && i.underlying_symbol && i.lot_size) {
         if (!lotMap[i.underlying_symbol]) {
           lotMap[i.underlying_symbol] = i.lot_size;
           foKeyMap[i.underlying_symbol] = i.instrument_key; // nearest expiry futures key
         }
+        // Indices (NIFTY, BANKNIFTY, FINNIFTY...) have no NSE_EQ instrument,
+        // so they never show up in eqData — surface them directly from FO data.
+        if (i.underlying_type === 'INDEX' && !indexMap[i.underlying_symbol]) {
+          indexMap[i.underlying_symbol] = {
+            symbol:  i.underlying_symbol,
+            name:    i.name || i.underlying_symbol,
+            lotSize: i.lot_size,
+            foInstrKey: i.instrument_key,
+          };
+        }
       }
     }
 
     const items = (eqData.data||[]).filter(i => i.instrument_type === 'EQ' && i.segment === 'NSE_EQ').slice(0, 20);
-    if (!items.length) { el.innerHTML='<div class="sri-msg">No results</div>'; return; }
+    const indexItems = Object.values(indexMap);
 
-    el.innerHTML = items.map(i=>{
+    if (!items.length && !indexItems.length) { el.innerHTML='<div class="sri-msg">No results</div>'; return; }
+
+    const eqHtml = items.map(i=>{
       const lotSize  = lotMap[i.trading_symbol]  || lotMap[i.short_name]  || null;
       const foKey    = foKeyMap[i.trading_symbol] || foKeyMap[i.short_name] || null;
       const lotLabel = lotSize ? ` · Lot: ${lotSize}` : '';
@@ -819,6 +832,24 @@ async function doSearch(q) {
         <div class="sri-meta">${i.name||''} · ${i.exchange||'NSE'}${lotLabel}</div>
       </div>`;
     }).join('');
+
+    const indexHtml = indexItems.map(idx => {
+      const enriched = {
+        trading_symbol: idx.symbol,
+        name: idx.name,
+        exchange: 'NSE',
+        instrument_key: null,      // no equity instrument for an index
+        _lotSize: idx.lotSize,
+        _foInstrKey: idx.foInstrKey,
+        _isIndex: true,
+      };
+      return `<div class="sri" onclick='pickInstr(${JSON.stringify(enriched)})'>
+        <div class="sri-name">${idx.symbol} <span style="color:var(--ac2);font-size:9px;font-weight:700">INDEX</span></div>
+        <div class="sri-meta">${idx.name} · NSE · Lot: ${idx.lotSize}</div>
+      </div>`;
+    }).join('');
+
+    el.innerHTML = indexHtml + eqHtml;
   } catch(e) { el.innerHTML='<div class="sri-msg">Error</div>'; }
 }
 
@@ -854,7 +885,7 @@ async function pickInstr(i) {
   updateShares();
 
   const existingDate = document.getElementById('f_dt').value;
-  if (existingDate) fetchHistoricalClose(selInstr.instrKey, existingDate);
+  if (existingDate) fetchHistoricalClose(selInstr.instrKey || selInstr.foInstrKey, existingDate);
 
   await loadContractsForSymbol(selInstr.symbol, 'f_month');
 }
@@ -894,6 +925,16 @@ function onMonthChange() {
   document.getElementById('f_lsz').value = c.lotSize;
   document.getElementById('si_meta').textContent = `${selInstr.name||selInstr.symbol} · ${selInstr.exchange} · ${c.monthLabel} · Lot: ${c.lotSize}`;
   updateShares();
+
+  // For index (no equity key), historical price depends on the futures contract itself —
+  // re-fetch if a date is already set
+  if (!selInstr.instrKey) {
+    const date = document.getElementById('f_dt').value;
+    if (date) {
+      document.getElementById('f_bp').value = '';
+      fetchHistoricalClose(selInstr.foInstrKey, date);
+    }
+  }
 }
 
 function updateShares() {
@@ -978,7 +1019,7 @@ function onBuyDateChange() {
   if (!selInstr || !date) return;
   // Clear current price so user sees the fetch happening
   document.getElementById('f_bp').value = '';
-  fetchHistoricalClose(selInstr.instrKey, date);
+  fetchHistoricalClose(selInstr.instrKey || selInstr.foInstrKey, date);
 }
 
 function clearInstr() {
@@ -1558,7 +1599,7 @@ async function savePos() {
     foInstrKey: selInstr.foInstrKey || null, // futures key for selected contract month
     expiry:     selInstr.expiry || null,     // e.g. "2026-05-26"
     monthLabel: selInstr.monthLabel || null, // e.g. "May 26"
-    type:     'EQ',
+    type:     selInstr.instrKey ? 'EQ' : 'INDEX',
     exchange: selInstr.exchange,
     lots,
     lotSize,
